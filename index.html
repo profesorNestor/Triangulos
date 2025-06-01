@@ -156,13 +156,13 @@
          const resCircumradius = document.getElementById('resCircumradius');
 
          // Estado del triángulo y dibujo
-         let currentTriangle = null; // Almacena los datos del triángulo calculado {a,b,c,A_rad,B_rad,C_rad}
-         let calculatedElements = {}; // Almacena elementos geométricos calculados (medianas, alturas, etc.)
-         let scaleFactor = 1.0; // Factor de zoom controlado por el usuario
-         let panOffset = { x: 0, y: 0 }; // Desplazamiento del paneo
-         let isPanning = false; // Estado del paneo
-         let lastPanPosition = { x: 0, y: 0 }; // Última posición del ratón/dedo durante el paneo
-         let lastPinchDistance = 0; // Última distancia entre dedos para el zoom táctil
+         let currentTriangle = null; 
+         let calculatedElements = {}; 
+         let scaleFactor = 1.0; 
+         let panOffset = { x: 0, y: 0 }; 
+         let isPanning = false; 
+         let lastPanPosition = { x: 0, y: 0 }; 
+         let lastPinchDistance = 0; 
 
          // Estado de los checkboxes para dibujar elementos adicionales
          const drawOptions = {
@@ -170,7 +170,7 @@
              centroid: false, orthocenter: false, incenter: false, circumcenter: false,
              inscribedCircle: false, circumscribedCircle: false
          };
-         const chkElements = { // Mapeo de IDs de checkboxes a claves en drawOptions
+         const chkElements = { 
              medians: document.getElementById('chkMedians'),
              altitudes: document.getElementById('chkAltitudes'),
              angleBisectors: document.getElementById('chkAngleBisectors'),
@@ -186,22 +186,20 @@
          // --------------------------------------------------------------------
          // 🛠️ FUNCIONES DE UTILIDAD
          // --------------------------------------------------------------------
-         const toRadians = (degrees) => degrees * PI / 180; // Convierte grados a radianes
-         const toDegrees = (radians) => radians * 180 / PI; // Convierte radianes a grados
-         const formatNumber = (num) => { // Formatea un número a una precisión decimal específica
+         const toRadians = (degrees) => degrees * PI / 180; 
+         const toDegrees = (radians) => radians * 180 / PI; 
+         const formatNumber = (num) => { 
              if (typeof num !== 'number' || isNaN(num)) return 'N/A';
              const precision = parseInt(precisionSelect.value);
              return num.toFixed(precision);
          };
-         // Calcula la intersección de dos líneas definidas por dos puntos cada una
          function intersectLines(p1, p2, p3, p4) {
             const den = (p1.x - p2.x) * (p3.y - p4.y) - (p1.y - p2.y) * (p3.x - p4.x);
-            if (Math.abs(den) < epsilon) return null; // Líneas paralelas o colineales
+            if (Math.abs(den) < epsilon) return null; 
             const tNum = (p1.x - p3.x) * (p3.y - p4.y) - (p1.y - p3.y) * (p3.x - p4.x);
             const t = tNum / den;
             return { x: p1.x + t * (p2.x - p1.x), y: p1.y + t * (p2.y - p1.y) };
         }
-        // Calcula la distancia entre dos puntos
         function distance(p1, p2) {
             return Math.sqrt((p1.x - p2.x)**2 + (p1.y - p2.y)**2);
         }
@@ -211,7 +209,7 @@
          // --------------------------------------------------------------------
          function showModal(title, message) {
              modalTitle.textContent = title;
-             modalMessage.innerHTML = message; // Usar innerHTML permite mensajes con formato HTML básico
+             modalMessage.innerHTML = message; 
              messageModal.classList.add('active');
          }
          closeModalButton.addEventListener('click', () => messageModal.classList.remove('active'));
@@ -219,7 +217,7 @@
          // --------------------------------------------------------------------
          // ⌨️ GESTIÓN DE ENTRADAS DE USUARIO
          // --------------------------------------------------------------------
-         function createInputGroup(index) { // Crea un grupo de entrada (selector de tipo + campo de valor)
+         function createInputGroup(index) { 
              const div = document.createElement('div');
              div.className = 'input-group';
              div.innerHTML = `
@@ -230,20 +228,18 @@
                  <input type="number" id="inputValue${index}" placeholder="Valor" step="any" class="dark:bg-gray-700 dark:border-gray-600 dark:text-white" aria-label="Valor de entrada ${index + 1}">`;
              inputsContainer.appendChild(div);
          }
-         for (let i = 0; i < 3; i++) createInputGroup(i); // Crear los 3 grupos de entrada iniciales
+         for (let i = 0; i < 3; i++) createInputGroup(i); 
 
          // --------------------------------------------------------------------
          // 📐 LÓGICA PRINCIPAL DE CÁLCULO DEL TRIÁNGULO
          // --------------------------------------------------------------------
          function calculateTriangle() {
-             // Resetear estado previo
              currentTriangle = null; calculatedElements = {};
              resultsCard.classList.add('hidden');
              resInradiusContainer.classList.add('hidden'); resCircumradiusContainer.classList.add('hidden');
              scaleFactor = 1.0; panOffset = { x: 0, y: 0 };
 
              const inputs = []; let sideCount = 0; const definedValues = {};
-             // Recopilar y validar entradas
              for (let i = 0; i < 3; i++) {
                  const type = document.getElementById(`inputType${i}`).value;
                  const valueStr = document.getElementById(`inputValue${i}`).value;
@@ -258,26 +254,26 @@
              if (inputs.length !== 3) { showModal('Error de Entrada 🚫', 'Debes ingresar exactamente tres valores.'); return; }
              if (sideCount === 0) { showModal('Error de Entrada 🚫', 'Debes ingresar al menos un lado para definir el tamaño del triángulo.'); return; }
 
-             let { sA, sB, sC, angA, angB, angC } = parseInputs(inputs); // Convertir entradas a variables utilizables
+             let { sA, sB, sC, angA, angB, angC } = parseInputs(inputs); 
              try {
-                 const solution = solveTriangle(sA, sB, sC, angA, angB, angC); // Intentar resolver el triángulo
+                 const solution = solveTriangle(sA, sB, sC, angA, angB, angC); 
                  currentTriangle = solution;
-                 calculateSpecialElements(); // Calcular elementos adicionales (medianas, alturas, etc.)
-                 displayResults(solution); // Mostrar resultados numéricos
+                 calculateSpecialElements(); 
+                 displayResults(solution); 
                  resultsCard.classList.remove('hidden');
-                 updateLastCalculatedGeometry(); // Actualizar geometría para el primer dibujado
-                 requestAnimationFrame(drawTriangle); // Dibujar el triángulo
+                 updateLastCalculatedGeometry(); 
+                 requestAnimationFrame(drawTriangle); 
              } catch (error) {
-                 showModal('Error de Cálculo  математика', error.message); // Mostrar error de cálculo
+                 showModal('Error de Cálculo 🤯', error.message); 
                  currentTriangle = null; resultsCard.classList.add('hidden');
              }
          }
 
-         function parseInputs(inputs) { // Parsea las entradas del formulario a variables
+         function parseInputs(inputs) { 
             let sA,sB,sC,angA,angB,angC; inputs.forEach(input => { switch (input.type) { case 'sideA':sA=input.value;break; case 'sideB':sB=input.value;break; case 'sideC':sC=input.value;break; case 'angleA':angA=toRadians(input.value);break; case 'angleB':angB=toRadians(input.value);break; case 'angleC':angC=toRadians(input.value);break; }}); return{sA,sB,sC,angA,angB,angC};
          }
          
-         function solveTriangle(a_in, b_in, c_in, A_in, B_in, C_in) { /* ... (same robust logic as before) ... */ 
+         function solveTriangle(a_in, b_in, c_in, A_in, B_in, C_in) { 
             let a = a_in, b = b_in, c = c_in, A = A_in, B = B_in, C = C_in; 
             const known = { a: a_in !== undefined, b: b_in !== undefined, c: c_in !== undefined, A: A_in !== undefined, B: B_in !== undefined, C: C_in !== undefined };
             const knownSideCount = (known.a?1:0) + (known.b?1:0) + (known.c?1:0);
@@ -394,8 +390,8 @@
              ctx.translate(canvas.width/(2*dpr)+panOffset.x,canvas.height/(2*dpr)+panOffset.y);ctx.scale(currentDisplayScale,currentDisplayScale);ctx.translate(-triCenterX,-triCenterY);
              const scrLineWidth=1.5,baseLineWidth=scrLineWidth/currentDisplayScale,ptRadius=3/currentDisplayScale,specialPtRadius=4/currentDisplayScale;
              const colors={triStroke:document.documentElement.classList.contains('dark')?'#60A5FA':'#2563EB',median:document.documentElement.classList.contains('dark')?'#A3E635':'#84CC16',altitude:document.documentElement.classList.contains('dark')?'#F472B6':'#EC4899',angleBisector:document.documentElement.classList.contains('dark')?'#818CF8':'#6366F1',perpBisector:document.documentElement.classList.contains('dark')?'#2DD4BF':'#14B8A6',centroid:document.documentElement.classList.contains('dark')?'#C084FC':'#A855F7',orthocenter:document.documentElement.classList.contains('dark')?'#FB923C':'#F97316',incenter:document.documentElement.classList.contains('dark')?'#FACC15':'#EAB308',circumcenter:document.documentElement.classList.contains('dark')?'#67E8F9':'#06B6D4',inscCirc:document.documentElement.classList.contains('dark')?'#FACC15':'#EAB308',circCirc:document.documentElement.classList.contains('dark')?'#67E8F9':'#06B6D4',
-                         label: document.documentElement.classList.contains('dark') ? '#CBD5E1' : '#FFFFFF', 
-                         value: document.documentElement.classList.contains('dark') ? '#E5E7EB' : '#FFFFFF', 
+                         label: document.documentElement.classList.contains('dark') ? '#CBD5E1' : '#374151', // Dark gray for light mode
+                         value: document.documentElement.classList.contains('dark') ? '#E5E7EB' : '#1F2937', // Darker gray/black for light mode
                          angArcs:[document.documentElement.classList.contains('dark')?'#FDE047':'#FACC15',document.documentElement.classList.contains('dark')?'#FCA5A5':'#F87171',document.documentElement.classList.contains('dark')?'#FDBA74':'#FB923C']};
              function drawLine(p1,p2,clr,dash=[],ext=1){if(!p1||!p2)return;let p1e=p1,p2e=p2;if(ext!==1){const dx=p2.x-p1.x,dy=p2.y-p1.y;p2e={x:p1.x+dx*ext,y:p1.y+dy*ext};if(ext>1.1)p1e={x:p1.x-dx*(ext-1)*0.3,y:p1.y-dy*(ext-1)*0.3};}ctx.beginPath();ctx.moveTo(p1e.x,p1e.y);ctx.lineTo(p2e.x,p2e.y);ctx.strokeStyle=clr;ctx.lineWidth=baseLineWidth*0.8;ctx.setLineDash(dash.map(d=>d/currentDisplayScale));ctx.stroke();ctx.setLineDash([]);}
              function drawLabeledPoint(p,lbl,clr,rad=specialPtRadius){if(!p)return;ctx.beginPath();ctx.arc(p.x,p.y,rad,0,2*PI);ctx.fillStyle=clr;ctx.fill();ctx.fillStyle=colors.label;ctx.font=`bold ${12/currentDisplayScale}px Arial`;ctx.fillText(lbl,p.x+rad*1.5,p.y-rad*1.5);}
@@ -431,7 +427,7 @@
         canvas.addEventListener('mousemove', (e) => { if (!isPanning || !currentTriangle) return; const dx = e.clientX - lastPanPosition.x; const dy = e.clientY - lastPanPosition.y; panOffset.x += dx; panOffset.y += dy; lastPanPosition = { x: e.clientX, y: e.clientY }; requestAnimationFrame(drawTriangle); });
         canvas.addEventListener('wheel', (e) => { if (!currentTriangle) return; e.preventDefault(); updateLastCalculatedGeometry(); const zoomIntensity = 0.1; const direction = e.deltaY < 0 ? 1 : -1; const oldScaleFactor = scaleFactor; scaleFactor *= (1 + direction * zoomIntensity); scaleFactor = Math.max(0.05, Math.min(scaleFactor, 20)); const rect = canvas.getBoundingClientRect(); const mouseX = e.clientX - rect.left; const mouseY = e.clientY - rect.top; const geom = lastCalculatedGeometry; const worldMouseX = (mouseX - (rect.width/2 + panOffset.x)) / (geom.scaleToFit * oldScaleFactor) + (geom.minX + geom.width/2); const worldMouseY = (mouseY - (rect.height/2 + panOffset.y)) / (geom.scaleToFit * oldScaleFactor) + (geom.minY + geom.height/2); panOffset.x = mouseX - rect.width/2 - (worldMouseX - (geom.minX + geom.width/2)) * (geom.scaleToFit * scaleFactor); panOffset.y = mouseY - rect.height/2 - (worldMouseY - (geom.minY + geom.height/2)) * (geom.scaleToFit * scaleFactor); requestAnimationFrame(drawTriangle); });
         
-        let lastCalculatedGeometry = {minX:0, minY:0, width:0, height:0, scaleToFit:1}; // Cache para optimizar zoom
+        let lastCalculatedGeometry = {minX:0, minY:0, width:0, height:0, scaleToFit:1}; 
         function updateLastCalculatedGeometry() { 
             if (!currentTriangle) { lastCalculatedGeometry = {minX:0, minY:0, width:0, height:0, scaleToFit:1}; return; } 
             const { a, b, c, A_rad } = currentTriangle; 
