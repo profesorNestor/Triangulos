@@ -41,7 +41,8 @@
              border-color: #4B5563; 
          }
          .dark .modal-content { background-color: #1F2937; }
-         .dark #triangleCanvas { border: 1px solid #374151; }
+         /* El canvas en sí no necesita borde oscuro si su contenedor es siempre negro */
+         /* .dark #triangleCanvas { border: 1px solid #374151; } */
          .form-checkbox { border-radius: 0.25rem; border-color: #D1D5DB; }
          .dark .form-checkbox { border-color: #4B5563; background-color: #374151; }
          .dark .form-checkbox:checked { background-color: #3B82F6; border-color: #3B82F6;}
@@ -122,7 +123,7 @@
              </div>
 
              <h3 class="text-lg font-medium mb-2 mt-6">Visualización del Triángulo 🖼️</h3>
-             <div class="bg-gray-50 dark:bg-gray-900 p-2 rounded-md relative">
+             <div class="bg-black p-2 rounded-md relative">
                  <canvas id="triangleCanvas"></canvas>
              </div>
              <button id="exportButton" class="btn btn-secondary w-full mt-4">Exportar Imagen 💾</button>
@@ -130,150 +131,39 @@
      </div>
 
      <script>
-         // --------------------------------------------------------------------
-         // 🌐 CONSTANTES GLOBALES Y ESTADO DE LA APLICACIÓN
-         // --------------------------------------------------------------------
+         // --- 🌐 CONSTANTES GLOBALES Y ESTADO DE LA APLICACIÓN ---
          const PI = Math.PI;
-         const epsilon = 1e-9; // Pequeño valor para comparaciones de punto flotante
+         const epsilon = 1e-9;
+         let G_isDarkModeActive = false; 
 
-         // Elementos del DOM
-         const inputsContainer = document.getElementById('inputsContainer');
-         const calculateButton = document.getElementById('calculateButton');
-         const resultsCard = document.getElementById('resultsCard');
-         const canvas = document.getElementById('triangleCanvas');
-         const ctx = canvas.getContext('2d');
-         const precisionSelect = document.getElementById('precisionSelect');
-         const exportButton = document.getElementById('exportButton');
-         const themeToggle = document.getElementById('themeToggle');
-         const themeIcon = document.getElementById('themeIcon');
-         const messageModal = document.getElementById('messageModal');
-         const modalTitle = document.getElementById('modalTitle');
-         const modalMessage = document.getElementById('modalMessage');
-         const closeModalButton = document.getElementById('closeModalButton');
-         const resInradiusContainer = document.getElementById('resInradiusContainer');
-         const resInradius = document.getElementById('resInradius');
-         const resCircumradiusContainer = document.getElementById('resCircumradiusContainer');
-         const resCircumradius = document.getElementById('resCircumradius');
+         // ---  DOM Elements ---
+         const inputsContainer = document.getElementById('inputsContainer'); const calculateButton = document.getElementById('calculateButton'); const resultsCard = document.getElementById('resultsCard'); const canvas = document.getElementById('triangleCanvas'); const ctx = canvas.getContext('2d'); const precisionSelect = document.getElementById('precisionSelect'); const exportButton = document.getElementById('exportButton'); const themeToggle = document.getElementById('themeToggle'); const themeIcon = document.getElementById('themeIcon'); const messageModal = document.getElementById('messageModal'); const modalTitle = document.getElementById('modalTitle'); const modalMessage = document.getElementById('modalMessage'); const closeModalButton = document.getElementById('closeModalButton'); const resInradiusContainer = document.getElementById('resInradiusContainer'); const resInradius = document.getElementById('resInradius'); const resCircumradiusContainer = document.getElementById('resCircumradiusContainer'); const resCircumradius = document.getElementById('resCircumradius');
+         let currentTriangle = null; let calculatedElements = {}; let scaleFactor = 1.0; let panOffset = { x: 0, y: 0 }; let isPanning = false; let lastPanPosition = { x: 0, y: 0 }; let lastPinchDistance = 0;
+         const drawOptions = { medians: false, altitudes: false, angleBisectors: false, perpBisectors: false, centroid: false, orthocenter: false, incenter: false, circumcenter: false, inscribedCircle: false, circumscribedCircle: false };
+         const chkElements = { medians: document.getElementById('chkMedians'), altitudes: document.getElementById('chkAltitudes'), angleBisectors: document.getElementById('chkAngleBisectors'), perpBisectors: document.getElementById('chkPerpBisectors'), centroid: document.getElementById('chkCentroid'), orthocenter: document.getElementById('chkOrthocenter'), incenter: document.getElementById('chkIncenter'), circumcenter: document.getElementById('chkCircumcenter'), inscribedCircle: document.getElementById('chkInscribedCircle'), circumscribedCircle: document.getElementById('chkCircumscribedCircle'), };
+         
+         // --- 🛠️ FUNCIONES DE UTILIDAD ---
+         const toRadians = (d) => d * PI / 180; const toDegrees = (r) => r * 180 / PI;
+         const formatNumber = (n) => { if(typeof n !=='number'||isNaN(n))return 'N/A'; return n.toFixed(parseInt(precisionSelect.value));};
+         function intersectLines(p1,p2,p3,p4){const d=(p1.x-p2.x)*(p3.y-p4.y)-(p1.y-p2.y)*(p3.x-p4.x);if(Math.abs(d)<epsilon)return null;const t=((p1.x-p3.x)*(p3.y-p4.y)-(p1.y-p3.y)*(p3.x-p4.x))/d;return{x:p1.x+t*(p2.x-p1.x),y:p1.y+t*(p2.y-p1.y)};}
+         function distance(p1,p2){return Math.sqrt((p1.x-p2.x)**2+(p1.y-p2.y)**2);}
+         
+         // --- 💬 FUNCIONES DEL MODAL ---
+         function showModal(t,m){modalTitle.textContent=t;modalMessage.innerHTML=m;messageModal.classList.add('active');}
+         closeModalButton.addEventListener('click',()=>messageModal.classList.remove('active'));
+         
+         // --- ⌨️ GESTIÓN DE ENTRADAS ---
+         function createInputGroup(i){const d=document.createElement('div');d.className='input-group';d.innerHTML=`<select id="inputType${i}" class="dark:bg-gray-700 dark:border-gray-600 dark:text-white" aria-label="Tipo de entrada ${i+1}"><option value="sideA">Lado a</option><option value="sideB">Lado b</option><option value="sideC">Lado c</option><option value="angleA">Ángulo A</option><option value="angleB">Ángulo B</option><option value="angleC">Ángulo C</option></select><input type="number" id="inputValue${i}" placeholder="Valor" step="any" class="dark:bg-gray-700 dark:border-gray-600 dark:text-white" aria-label="Valor de entrada ${i + 1}">`;inputsContainer.appendChild(d);}
+         for(let i=0;i<3;i++)createInputGroup(i);
 
-         // Estado del triángulo y dibujo
-         let currentTriangle = null; 
-         let calculatedElements = {}; 
-         let scaleFactor = 1.0; 
-         let panOffset = { x: 0, y: 0 }; 
-         let isPanning = false; 
-         let lastPanPosition = { x: 0, y: 0 }; 
-         let lastPinchDistance = 0; 
-
-         // Estado de los checkboxes para dibujar elementos adicionales
-         const drawOptions = {
-             medians: false, altitudes: false, angleBisectors: false, perpBisectors: false,
-             centroid: false, orthocenter: false, incenter: false, circumcenter: false,
-             inscribedCircle: false, circumscribedCircle: false
-         };
-         const chkElements = { 
-             medians: document.getElementById('chkMedians'),
-             altitudes: document.getElementById('chkAltitudes'),
-             angleBisectors: document.getElementById('chkAngleBisectors'),
-             perpBisectors: document.getElementById('chkPerpBisectors'),
-             centroid: document.getElementById('chkCentroid'),
-             orthocenter: document.getElementById('chkOrthocenter'),
-             incenter: document.getElementById('chkIncenter'),
-             circumcenter: document.getElementById('chkCircumcenter'),
-             inscribedCircle: document.getElementById('chkInscribedCircle'),
-             circumscribedCircle: document.getElementById('chkCircumscribedCircle'),
-         };
-
-         // --------------------------------------------------------------------
-         // 🛠️ FUNCIONES DE UTILIDAD
-         // --------------------------------------------------------------------
-         const toRadians = (degrees) => degrees * PI / 180; 
-         const toDegrees = (radians) => radians * 180 / PI; 
-         const formatNumber = (num) => { 
-             if (typeof num !== 'number' || isNaN(num)) return 'N/A';
-             const precision = parseInt(precisionSelect.value);
-             return num.toFixed(precision);
-         };
-         function intersectLines(p1, p2, p3, p4) {
-            const den = (p1.x - p2.x) * (p3.y - p4.y) - (p1.y - p2.y) * (p3.x - p4.x);
-            if (Math.abs(den) < epsilon) return null; 
-            const tNum = (p1.x - p3.x) * (p3.y - p4.y) - (p1.y - p3.y) * (p3.x - p4.x);
-            const t = tNum / den;
-            return { x: p1.x + t * (p2.x - p1.x), y: p1.y + t * (p2.y - p1.y) };
-        }
-        function distance(p1, p2) {
-            return Math.sqrt((p1.x - p2.x)**2 + (p1.y - p2.y)**2);
-        }
-
-         // --------------------------------------------------------------------
-         // 💬 FUNCIONES DEL MODAL DE MENSAJES
-         // --------------------------------------------------------------------
-         function showModal(title, message) {
-             modalTitle.textContent = title;
-             modalMessage.innerHTML = message; 
-             messageModal.classList.add('active');
+         // --- 📐 LÓGICA PRINCIPAL DE CÁLCULO ---
+         function calculateTriangle() { /* ... (same robust logic as before) ... */ 
+            currentTriangle=null;calculatedElements={};resultsCard.classList.add('hidden');resInradiusContainer.classList.add('hidden');resCircumradiusContainer.classList.add('hidden');scaleFactor=1.0;panOffset={x:0,y:0};const inputs=[];let sideCount=0;const definedValues={};for(let i=0;i<3;i++){const type=document.getElementById(`inputType${i}`).value;const valueStr=document.getElementById(`inputValue${i}`).value;if(valueStr===''){showModal('Error 🚫','Completa los 3 campos.');return;}const value=parseFloat(valueStr);if(type.startsWith('angle')){if(isNaN(value)||value<=0||value>=180){showModal('Error 🚫',`Ángulo '${type}' inválido (0-180).`);return;}}else if(type.startsWith('side')){if(isNaN(value)||value<=0){showModal('Error �',`Lado '${type}' debe ser > 0.`);return;}}else if(isNaN(value)){showModal('Error 🚫',`Valor '${type}' debe ser número.`);return;}if(definedValues[type]){showModal('Error 🚫',`'${type}' definido múltiples veces.`);return;}definedValues[type]=true;inputs.push({type,value});if(type.startsWith('side'))sideCount++;}if(inputs.length!==3){showModal('Error 🚫','Ingresa 3 valores.');return;}if(sideCount===0){showModal('Error 🚫','Al menos un lado.');return;}let{sA,sB,sC,angA,angB,angC}=parseInputs(inputs);try{const solution=solveTriangle(sA,sB,sC,angA,angB,angC);currentTriangle=solution;calculateSpecialElements();displayResults(solution);resultsCard.classList.remove('hidden');updateLastCalculatedGeometry();requestAnimationFrame(drawTriangle);}catch(error){showModal('Error Cálculo 🤯',error.message);currentTriangle=null;resultsCard.classList.add('hidden');}
          }
-         closeModalButton.addEventListener('click', () => messageModal.classList.remove('active'));
-
-         // --------------------------------------------------------------------
-         // ⌨️ GESTIÓN DE ENTRADAS DE USUARIO
-         // --------------------------------------------------------------------
-         function createInputGroup(index) { 
-             const div = document.createElement('div');
-             div.className = 'input-group';
-             div.innerHTML = `
-                 <select id="inputType${index}" class="dark:bg-gray-700 dark:border-gray-600 dark:text-white" aria-label="Tipo de entrada ${index + 1}">
-                     <option value="sideA">Lado a</option><option value="sideB">Lado b</option><option value="sideC">Lado c</option>
-                     <option value="angleA">Ángulo A</option><option value="angleB">Ángulo B</option><option value="angleC">Ángulo C</option>
-                 </select>
-                 <input type="number" id="inputValue${index}" placeholder="Valor" step="any" class="dark:bg-gray-700 dark:border-gray-600 dark:text-white" aria-label="Valor de entrada ${index + 1}">`;
-             inputsContainer.appendChild(div);
-         }
-         for (let i = 0; i < 3; i++) createInputGroup(i); 
-
-         // --------------------------------------------------------------------
-         // 📐 LÓGICA PRINCIPAL DE CÁLCULO DEL TRIÁNGULO
-         // --------------------------------------------------------------------
-         function calculateTriangle() {
-             currentTriangle = null; calculatedElements = {};
-             resultsCard.classList.add('hidden');
-             resInradiusContainer.classList.add('hidden'); resCircumradiusContainer.classList.add('hidden');
-             scaleFactor = 1.0; panOffset = { x: 0, y: 0 };
-
-             const inputs = []; let sideCount = 0; const definedValues = {};
-             for (let i = 0; i < 3; i++) {
-                 const type = document.getElementById(`inputType${i}`).value;
-                 const valueStr = document.getElementById(`inputValue${i}`).value;
-                 if (valueStr === '') { showModal('Error de Entrada 🚫', `Por favor, completa los tres campos de entrada.`); return; }
-                 const value = parseFloat(valueStr);
-                 if (type.startsWith('angle')) { if (isNaN(value) || value <= 0 || value >= 180) { showModal('Error de Entrada 🚫', `El valor para '${type}' debe ser un ángulo entre 0 y 180 grados (no inclusivos).`); return; }
-                 } else if (type.startsWith('side')) { if (isNaN(value) || value <= 0) { showModal('Error de Entrada 🚫', `El valor para '${type}' debe ser un número positivo.`); return; }
-                 } else if (isNaN(value)) { showModal('Error de Entrada 🚫', `El valor para '${type}' debe ser un número.`); return; }
-                 if (definedValues[type]) { showModal('Error de Entrada 🚫', `Has definido '${type}' más de una vez. Cada lado y ángulo solo puede ser ingresado una vez.`); return; }
-                 definedValues[type] = true; inputs.push({ type, value }); if (type.startsWith('side')) sideCount++;
-             }
-             if (inputs.length !== 3) { showModal('Error de Entrada 🚫', 'Debes ingresar exactamente tres valores.'); return; }
-             if (sideCount === 0) { showModal('Error de Entrada 🚫', 'Debes ingresar al menos un lado para definir el tamaño del triángulo.'); return; }
-
-             let { sA, sB, sC, angA, angB, angC } = parseInputs(inputs); 
-             try {
-                 const solution = solveTriangle(sA, sB, sC, angA, angB, angC); 
-                 currentTriangle = solution;
-                 calculateSpecialElements(); 
-                 displayResults(solution); 
-                 resultsCard.classList.remove('hidden');
-                 updateLastCalculatedGeometry(); 
-                 requestAnimationFrame(drawTriangle); 
-             } catch (error) {
-                 showModal('Error de Cálculo 🤯', error.message); 
-                 currentTriangle = null; resultsCard.classList.add('hidden');
-             }
-         }
-
-         function parseInputs(inputs) { 
+         function parseInputs(inputs){ /* ... (same as before) ... */ 
             let sA,sB,sC,angA,angB,angC; inputs.forEach(input => { switch (input.type) { case 'sideA':sA=input.value;break; case 'sideB':sB=input.value;break; case 'sideC':sC=input.value;break; case 'angleA':angA=toRadians(input.value);break; case 'angleB':angB=toRadians(input.value);break; case 'angleC':angC=toRadians(input.value);break; }}); return{sA,sB,sC,angA,angB,angC};
          }
-         
-         function solveTriangle(a_in, b_in, c_in, A_in, B_in, C_in) { 
+         function solveTriangle(a_in, b_in, c_in, A_in, B_in, C_in) { /* ... (same robust logic as before) ... */ 
             let a = a_in, b = b_in, c = c_in, A = A_in, B = B_in, C = C_in; 
             const known = { a: a_in !== undefined, b: b_in !== undefined, c: c_in !== undefined, A: A_in !== undefined, B: B_in !== undefined, C: C_in !== undefined };
             const knownSideCount = (known.a?1:0) + (known.b?1:0) + (known.c?1:0);
@@ -352,11 +242,7 @@
             if(a+b<=c+epsilon||a+c<=b+epsilon||b+c<=a+epsilon)throw new Error("Desigualdad triangular (calculado) no cumplida.");
             return {a,b,c,A_rad:A,B_rad:B,C_rad:C};
          }
-         
-         // --------------------------------------------------------------------
-         // ➕ CÁLCULO DE ELEMENTOS GEOMÉTRICOS ADICIONALES
-         // --------------------------------------------------------------------
-         function calculateSpecialElements() { 
+         function calculateSpecialElements() { /* ... (same as before) ... */ 
             if(!currentTriangle)return;const{a,b,c,A_rad,B_rad,C_rad}=currentTriangle;
             const pA={x:0,y:0};const pB={x:c,y:0};const pC={x:b*Math.cos(A_rad),y:b*Math.sin(A_rad)};calculatedElements.vertices={pA,pB,pC};
             const midAB={x:(pA.x+pB.x)/2,y:(pA.y+pB.y)/2};const midBC={x:(pB.x+pC.x)/2,y:(pB.y+pC.y)/2};const midCA={x:(pC.x+pA.x)/2,y:(pC.y+pA.y)/2};calculatedElements.midpoints={midAB,midBC,midCA};
@@ -368,18 +254,10 @@
             function getAltitudeLine(vertex,oppP1,oppP2){if(Math.abs(oppP1.y-oppP2.y)<epsilon){return{p1:vertex,p2:{x:vertex.x,y:oppP1.y}};}if(Math.abs(oppP1.x-oppP2.x)<epsilon){return{p1:vertex,p2:{x:oppP1.x,y:vertex.y}};}const slopeOpp=(oppP2.y-oppP1.y)/(oppP2.x-oppP1.x);const slopeAlt=-1/slopeOpp;const x_foot=(slopeOpp*oppP1.x-slopeAlt*vertex.x+vertex.y-oppP1.y)/(slopeOpp-slopeAlt);const y_foot=slopeOpp*(x_foot-oppP1.x)+oppP1.y;const foot={x:x_foot,y:y_foot};return{p1:vertex,p2:foot};}
             calculatedElements.altitudes=[getAltitudeLine(pA,pB,pC),getAltitudeLine(pB,pC,pA),getAltitudeLine(pC,pA,pB)];calculatedElements.orthocenter=intersectLines(calculatedElements.altitudes[0].p1,calculatedElements.altitudes[0].p2,calculatedElements.altitudes[1].p1,calculatedElements.altitudes[1].p2);if(!calculatedElements.orthocenter){calculatedElements.orthocenter=intersectLines(calculatedElements.altitudes[0].p1,calculatedElements.altitudes[0].p2,calculatedElements.altitudes[2].p1,calculatedElements.altitudes[2].p2);}
          }
-
-         // --------------------------------------------------------------------
-         // 📊 MOSTRAR RESULTADOS NUMÉRICOS
-         // --------------------------------------------------------------------
          function displayResults(triangle) { 
             document.getElementById('resLadoA').textContent=formatNumber(triangle.a);document.getElementById('resLadoB').textContent=formatNumber(triangle.b);document.getElementById('resLadoC').textContent=formatNumber(triangle.c);document.getElementById('resAnguloA').textContent=formatNumber(toDegrees(triangle.A_rad));document.getElementById('resAnguloB').textContent=formatNumber(toDegrees(triangle.B_rad));document.getElementById('resAnguloC').textContent=formatNumber(toDegrees(triangle.C_rad));const perimeter=triangle.a+triangle.b+triangle.c;const s=perimeter/2;let area;if(s<triangle.a-epsilon||s<triangle.b-epsilon||s<triangle.c-epsilon||(s*(s-triangle.a)*(s-triangle.b)*(s-triangle.c))<-epsilon){area=0;}else{area=Math.sqrt(Math.max(0,s*(s-triangle.a)*(s-triangle.b)*(s-triangle.c)));}
             document.getElementById('resPerimetro').textContent=formatNumber(perimeter);document.getElementById('resArea').textContent=formatNumber(area);if(calculatedElements.inradius){resInradius.textContent=formatNumber(calculatedElements.inradius);resInradiusContainer.classList.remove('hidden');}else{resInradiusContainer.classList.add('hidden');}if(calculatedElements.circumradius){resCircumradius.textContent=formatNumber(calculatedElements.circumradius);resCircumradiusContainer.classList.remove('hidden');}else{resCircumradiusContainer.classList.add('hidden');}
          }
-
-         // --------------------------------------------------------------------
-         // 🎨 LÓGICA DE DIBUJO EN EL CANVAS
-         // --------------------------------------------------------------------
          function drawTriangle() { 
              if (!currentTriangle||!calculatedElements.vertices) return; const { a,b,c,A_rad,B_rad,C_rad } = currentTriangle; const { vertices,medians,centroid,altitudes,orthocenter,angleBisectors,incenter,inradius,perpBisectors,circumcenter,circumradius } = calculatedElements; const pA=vertices.pA,pB=vertices.pB,pC=vertices.pC;
              const dpr=window.devicePixelRatio||1; const rect=canvas.getBoundingClientRect(); canvas.width=rect.width*dpr; canvas.height=rect.height*dpr; ctx.scale(dpr,dpr); ctx.clearRect(0,0,canvas.width/dpr,canvas.height/dpr); ctx.save();
@@ -389,10 +267,23 @@
              const triCenterX=minX+triW/2,triCenterY=minY+triH/2;
              ctx.translate(canvas.width/(2*dpr)+panOffset.x,canvas.height/(2*dpr)+panOffset.y);ctx.scale(currentDisplayScale,currentDisplayScale);ctx.translate(-triCenterX,-triCenterY);
              const scrLineWidth=1.5,baseLineWidth=scrLineWidth/currentDisplayScale,ptRadius=3/currentDisplayScale,specialPtRadius=4/currentDisplayScale;
-             const colors={triStroke:document.documentElement.classList.contains('dark')?'#60A5FA':'#2563EB',median:document.documentElement.classList.contains('dark')?'#A3E635':'#84CC16',altitude:document.documentElement.classList.contains('dark')?'#F472B6':'#EC4899',angleBisector:document.documentElement.classList.contains('dark')?'#818CF8':'#6366F1',perpBisector:document.documentElement.classList.contains('dark')?'#2DD4BF':'#14B8A6',centroid:document.documentElement.classList.contains('dark')?'#C084FC':'#A855F7',orthocenter:document.documentElement.classList.contains('dark')?'#FB923C':'#F97316',incenter:document.documentElement.classList.contains('dark')?'#FACC15':'#EAB308',circumcenter:document.documentElement.classList.contains('dark')?'#67E8F9':'#06B6D4',inscCirc:document.documentElement.classList.contains('dark')?'#FACC15':'#EAB308',circCirc:document.documentElement.classList.contains('dark')?'#67E8F9':'#06B6D4',
-                         label: document.documentElement.classList.contains('dark') ? '#CBD5E1' : '#374151', // Dark gray for light mode
-                         value: document.documentElement.classList.contains('dark') ? '#E5E7EB' : '#1F2937', // Darker gray/black for light mode
-                         angArcs:[document.documentElement.classList.contains('dark')?'#FDE047':'#FACC15',document.documentElement.classList.contains('dark')?'#FCA5A5':'#F87171',document.documentElement.classList.contains('dark')?'#FDBA74':'#FB923C']};
+             // Colores para el canvas, ahora fijos o basados en G_isDarkModeActive para elementos fuera del triángulo principal
+             const colors={
+                         triStroke: '#60A5FA', // Azul brillante para el borde del triángulo
+                         median: G_isDarkModeActive ? '#A3E635' : '#65A30D', // Lima
+                         altitude: G_isDarkModeActive ? '#F472B6' : '#DB2777', // Rosa
+                         angleBisector: G_isDarkModeActive ? '#818CF8' : '#4F46E5', // Indigo
+                         perpBisector: G_isDarkModeActive ? '#2DD4BF' : '#0D9488', // Teal
+                         centroid: G_isDarkModeActive ? '#C084FC' : '#9333EA', // Púrpura
+                         orthocenter: G_isDarkModeActive ? '#FB923C' : '#F97316', // Naranja
+                         incenter: G_isDarkModeActive ? '#FACC15' : '#EAB308', // Amarillo
+                         circumcenter: G_isDarkModeActive ? '#67E8F9' : '#06B6D4', // Cian
+                         inscCirc: G_isDarkModeActive ? '#FACC15' : '#EAB308',
+                         circCirc: G_isDarkModeActive ? '#67E8F9' : '#06B6D4',
+                         label: '#FFFFFF', // Siempre blanco para etiquetas sobre el canvas
+                         value: '#FFFFFF', // Siempre blanco para valores sobre el canvas
+                         angArcs:[ '#FACC15', '#F87171', '#FB923C'] // Amarillo, Rojo, Naranja (fijos)
+                        };
              function drawLine(p1,p2,clr,dash=[],ext=1){if(!p1||!p2)return;let p1e=p1,p2e=p2;if(ext!==1){const dx=p2.x-p1.x,dy=p2.y-p1.y;p2e={x:p1.x+dx*ext,y:p1.y+dy*ext};if(ext>1.1)p1e={x:p1.x-dx*(ext-1)*0.3,y:p1.y-dy*(ext-1)*0.3};}ctx.beginPath();ctx.moveTo(p1e.x,p1e.y);ctx.lineTo(p2e.x,p2e.y);ctx.strokeStyle=clr;ctx.lineWidth=baseLineWidth*0.8;ctx.setLineDash(dash.map(d=>d/currentDisplayScale));ctx.stroke();ctx.setLineDash([]);}
              function drawLabeledPoint(p,lbl,clr,rad=specialPtRadius){if(!p)return;ctx.beginPath();ctx.arc(p.x,p.y,rad,0,2*PI);ctx.fillStyle=clr;ctx.fill();ctx.fillStyle=colors.label;ctx.font=`bold ${12/currentDisplayScale}px Arial`;ctx.fillText(lbl,p.x+rad*1.5,p.y-rad*1.5);}
              function drawCircle(ctr,rad,clr){if(!ctr||!rad||rad<epsilon)return;ctx.beginPath();ctx.arc(ctr.x,ctr.y,rad,0,2*PI);ctx.strokeStyle=clr;ctx.lineWidth=baseLineWidth*0.7;ctx.setLineDash([5/currentDisplayScale,3/currentDisplayScale]);ctx.stroke();ctx.setLineDash([]);}
@@ -402,17 +293,34 @@
              if(drawOptions.angleBisectors&&angleBisectors)angleBisectors.forEach(ab=>drawLine(ab.p1,ab.p2,colors.angleBisector,[7,3,2,3],1+lineExt/distance(ab.p1,ab.p2)));if(drawOptions.incenter&&incenter)drawLabeledPoint(incenter,"I",colors.incenter);if(drawOptions.inscribedCircle&&incenter&&inradius)drawCircle(incenter,inradius,colors.inscCirc);
              if(drawOptions.perpBisectors&&perpBisectors){perpBisectors.forEach(pb=>{if(!pb||!pb.p1||!pb.p2)return;const dx=pb.p2.x-pb.p1.x,dy=pb.p2.y-pb.p1.y;const len=Math.sqrt(dx*dx+dy*dy);if(len<epsilon)return;const ext=Math.max(a,b,c)*1.0/len;const p_s={x:pb.p1.x-dx*ext,y:pb.p1.y-dy*ext};const p_e={x:pb.p1.x+dx*ext,y:pb.p1.y+dy*ext};drawLine(p_s,p_e,colors.perpBisector,[10,4]);});}
              if(drawOptions.circumcenter&&circumcenter)drawLabeledPoint(circumcenter,"O",colors.circumcenter);if(drawOptions.circumscribedCircle&&circumcenter&&circumradius)drawCircle(circumcenter,circumradius,colors.circCirc);
-             ctx.beginPath();ctx.moveTo(pA.x,pA.y);ctx.lineTo(pB.x,pB.y);ctx.lineTo(pC.x,pC.y);ctx.closePath();ctx.fillStyle=document.documentElement.classList.contains('dark')?'rgba(59,130,246,0.4)':'rgba(96,165,250,0.5)';ctx.fill();ctx.strokeStyle=colors.triStroke;ctx.lineWidth=baseLineWidth;ctx.stroke();
+             
+             // Dibujo del triángulo principal (relleno y borde)
+             ctx.beginPath();ctx.moveTo(pA.x,pA.y);ctx.lineTo(pB.x,pB.y);ctx.lineTo(pC.x,pC.y);ctx.closePath();
+             ctx.fillStyle = 'rgba(59, 130, 246, 0.6)'; // Azul semitransparente fijo para el relleno
+             ctx.fill();
+             ctx.strokeStyle = colors.triStroke; // Usa el color definido en el objeto colors
+             ctx.lineWidth = baseLineWidth;
+             ctx.stroke();
+
+             // Estilos para etiquetas y valores del triángulo principal
              const valFontSize=13,vtxNameFontSize=15;const geomValFS=valFontSize/currentDisplayScale,geomVtxNameFS=vtxNameFontSize/currentDisplayScale;
              const vtxNameFont=`bold ${geomVtxNameFS}px Arial`,valFont=`${geomValFS}px Arial`;
              const scrLblOff=12,geomLblOff=scrLblOff/currentDisplayScale;const scrAngValOff=18,geomAngValOff=scrAngValOff/currentDisplayScale;const scrVtxLblOff=8,geomVtxLblOff=scrVtxLblOff/currentDisplayScale;const scrArcRad=19,geomArcRad=scrArcRad/currentDisplayScale;
-             ctx.fillStyle=colors.label;ctx.font=vtxNameFont;ctx.lineWidth=(scrLineWidth+1)/currentDisplayScale;
+             
+             // Dibujar etiquetas de vértices (A,B,C) y arcos de ángulos
+             ctx.fillStyle = colors.label; // Siempre blanco
+             ctx.font = vtxNameFont;
+             ctx.lineWidth = (scrLineWidth+1)/currentDisplayScale;
+
              ctx.fillText("A",pA.x-geomVtxLblOff*1.5,pA.y-geomVtxLblOff*1.5);ctx.beginPath();ctx.arc(pA.x,pA.y,geomArcRad,0,A_rad,false);ctx.strokeStyle=colors.angArcs[0];ctx.stroke();
              const vBC={x:pC.x-pB.x,y:pC.y-pB.y},vBA={x:pA.x-pB.x,y:pA.y-pB.y};const angBC=Math.atan2(vBC.y,vBC.x),angBA=Math.atan2(vBA.y,vBA.x);let crossB=vBC.x*vBA.y-vBC.y*vBA.x;ctx.beginPath();ctx.arc(pB.x,pB.y,geomArcRad,angBC,angBA,crossB<0);ctx.strokeStyle=colors.angArcs[1];ctx.stroke();
              const lBAn={x:pA.x-pB.x,y:pA.y-pB.y};const l_BA=Math.sqrt(lBAn.x**2+lBAn.y**2);if(l_BA>epsilon){lBAn.x/=l_BA;lBAn.y/=l_BA;}const lBCn={x:pC.x-pB.x,y:pC.y-pB.y};const l_BC=Math.sqrt(lBCn.x**2+lBCn.y**2);if(l_BC>epsilon){lBCn.x/=l_BC;lBCn.y/=l_BC;}let bBx=lBAn.x+lBCn.x,bBy=lBAn.y+lBCn.y;let lenBB=Math.sqrt(bBx**2+bBy**2);if(lenBB>epsilon){bBx/=lenBB;bBy/=lenBB;}else{bBx=lBAn.y;bBy=-lBAn.x;}ctx.fillText("B",pB.x+geomVtxLblOff*1.5*bBx,pB.y+geomVtxLblOff*1.5*bBy);
              const vCA={x:pA.x-pC.x,y:pA.y-pC.y},vCB={x:pB.x-pC.x,y:pB.y-pC.y};const angCA=Math.atan2(vCA.y,vCA.x),angCB=Math.atan2(vCB.y,vCB.x);let crossC=vCA.x*vCB.y-vCA.y*vCB.x;ctx.beginPath();ctx.arc(pC.x,pC.y,geomArcRad,angCA,angCB,crossC<0);ctx.strokeStyle=colors.angArcs[2];ctx.stroke();
              const lCAn={x:pA.x-pC.x,y:pA.y-pC.y};const l_CA=Math.sqrt(lCAn.x**2+lCAn.y**2);if(l_CA>epsilon){lCAn.x/=l_CA;lCAn.y/=l_CA;}const lCBn={x:pB.x-pC.x,y:pB.y-pC.y};const l_CB=Math.sqrt(lCBn.x**2+lCBn.y**2);if(l_CB>epsilon){lCBn.x/=l_CB;lCBn.y/=l_CB;}let bCx=lCAn.x+lCBn.x,bCy=lCAn.y+lCBn.y;let lenCC=Math.sqrt(bCx**2+bCy**2);if(lenCC>epsilon){bCx/=lenCC;bCy/=lenCC;}else{bCx=lCAn.y;bCy=-lCAn.x;}ctx.fillText("C",pC.x+geomVtxLblOff*1.5*bCx,pC.y+geomVtxLblOff*1.5*bCy);
-             ctx.fillStyle=colors.value;ctx.font=valFont;ctx.lineWidth=baseLineWidth;
+             
+             // Dibujar valores de lados y ángulos
+             ctx.fillStyle=colors.value; // Siempre blanco
+             ctx.font=valFont;ctx.lineWidth=baseLineWidth;
              ctx.fillText(`c=${formatNumber(c)}`,(pA.x+pB.x)/2,(pA.y+pB.y)/2-geomLblOff);const mACx=(pA.x+pC.x)/2,mACy=(pA.y+pC.y)/2;let nACx=-(pC.y-pA.y),nACy=(pC.x-pA.x);let lAC=Math.sqrt(nACx**2+nACy**2);if(lAC<epsilon){nACx=0;nACy=-1;lAC=1;}ctx.fillText(`b=${formatNumber(b)}`,mACx+geomLblOff*nACx/lAC,mACy+geomLblOff*nACy/lAC);const mBCx=(pB.x+pC.x)/2,mBCy=(pB.y+pC.y)/2;let nBCx=-(pC.y-pB.y),nBCy=(pC.x-pB.x);let lBC=Math.sqrt(nBCx**2+nBCy**2);if(lBC<epsilon){nBCx=0;nBCy=-1;lBC=1;}ctx.fillText(`a=${formatNumber(a)}`,mBCx+geomLblOff*nBCx/lBC,mBCy+geomLblOff*nBCy/lBC);
              const angValOffM=2.5;if(A_rad>epsilon)ctx.fillText(`${formatNumber(toDegrees(A_rad))}°`,pA.x+geomAngValOff*angValOffM*Math.cos(A_rad/2),pA.y+geomAngValOff*angValOffM*Math.sin(A_rad/2));if(lenBB>epsilon&&B_rad>epsilon)ctx.fillText(`${formatNumber(toDegrees(B_rad))}°`,pB.x+geomAngValOff*angValOffM*bBx,pB.y+geomAngValOff*angValOffM*bBy);if(lenCC>epsilon&&C_rad>epsilon)ctx.fillText(`${formatNumber(toDegrees(C_rad))}°`,pC.x+geomAngValOff*angValOffM*bCx,pC.y+geomAngValOff*angValOffM*bCy);
              ctx.restore();
@@ -458,40 +366,52 @@
         // --------------------------------------------------------------------
         // 🌓 GESTIÓN DEL TEMA (CLARO/OSCURO)
         // --------------------------------------------------------------------
-        function setInitialTheme() { 
+        function updateThemeVisuals(isDark) { 
             const themeIconSvg = document.getElementById('themeIcon');
-            if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) { 
-                document.documentElement.classList.add('dark'); 
+            G_isDarkModeActive = isDark; // Actualizar variable global
+            if (isDark) {
+                document.documentElement.classList.add('dark');
                 themeIconSvg.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>`; // Luna 🌙
                 themeIconSvg.classList.remove('text-gray-700'); themeIconSvg.classList.add('text-gray-300');
-            } else { 
-                document.documentElement.classList.remove('dark'); 
+            } else {
+                document.documentElement.classList.remove('dark');
                 themeIconSvg.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>`; // Sol ☀️
                 themeIconSvg.classList.remove('text-gray-300'); themeIconSvg.classList.add('text-gray-700');
-            } 
+            }
         }
+
+        function setInitialTheme() { 
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const storedTheme = localStorage.getItem('theme');
+            let isDark;
+            if (storedTheme === 'dark') isDark = true;
+            else if (storedTheme === 'light') isDark = false;
+            else isDark = prefersDark; // Usar preferencia del sistema si no hay nada guardado
+            updateThemeVisuals(isDark);
+        }
+
         themeToggle.addEventListener('click', () => { 
-            localStorage.setItem('theme', document.documentElement.classList.toggle('dark') ? 'dark' : 'light');
-            setInitialTheme(); // Actualizar icono y clases
-            if (currentTriangle) requestAnimationFrame(drawTriangle); // Redibujar con nuevos colores de tema
+            const newIsDark = !document.documentElement.classList.contains('dark');
+            localStorage.setItem('theme', newIsDark ? 'dark' : 'light');
+            updateThemeVisuals(newIsDark); 
+            if (currentTriangle) requestAnimationFrame(drawTriangle); 
         });
         
         // --------------------------------------------------------------------
         // 🖼️ OBSERVADOR DE REDIMENSIONAMIENTO DEL CANVAS
         // --------------------------------------------------------------------
         const resizeObserver = new ResizeObserver(entries => { for (let entry of entries) { if (entry.target === canvas.parentElement || entry.target === canvas) { if (currentTriangle) { updateLastCalculatedGeometry(); requestAnimationFrame(drawTriangle); } } } });
-        if (canvas.parentElement) { resizeObserver.observe(canvas.parentElement); } resizeObserver.observe(canvas); // Observar también el canvas por si acaso
+        if (canvas.parentElement) { resizeObserver.observe(canvas.parentElement); } resizeObserver.observe(canvas); 
         
         // --------------------------------------------------------------------
         // 🚀 INICIALIZACIÓN DE LA APLICACIÓN
         // --------------------------------------------------------------------
-        setInitialTheme(); // Establecer tema inicial
-        // Valores por defecto para facilitar pruebas
+        setInitialTheme(); 
         document.getElementById('inputType0').value = 'sideA'; document.getElementById('inputValue0').value = '3';
         document.getElementById('inputType1').value = 'sideB'; document.getElementById('inputValue1').value = '4';
         document.getElementById('inputType2').value = 'sideC'; document.getElementById('inputValue2').value = '5';
-        // calculateTriangle(); // Descomentar para calcular automáticamente al cargar (útil para desarrollo)
+        // calculateTriangle(); 
      </script>
  </body>
  </html>
- 
+ �
