@@ -1,0 +1,341 @@
+ <!DOCTYPE html>
+ <html lang="es">
+ <head>
+     <meta charset="UTF-8">
+     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+     <title>Visualizador de Triángulos Avanzado</title>
+     <script src="https://cdn.tailwindcss.com"></script>
+     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+     <style>
+         body {
+             font-family: 'Inter', sans-serif;
+             overscroll-behavior-y: contain; 
+         }
+         .input-group { display: flex; align-items: center; gap: 0.5rem; }
+         /* Default (light mode) styles for inputs */
+         .input-group select, .input-group input { 
+             padding: 0.75rem; 
+             border-radius: 0.5rem; 
+             border: 1px solid #D1D5DB; /* gray-300 */
+             background-color: white; 
+             color: #111827; /* gray-900 for light mode text */
+         }
+         .input-group select { flex-basis: 40%; }
+         .input-group input { flex-basis: 60%; }
+         .btn { padding: 0.75rem 1.5rem; border-radius: 0.5rem; font-weight: 600; transition: background-color 0.2s ease-in-out; cursor: pointer; }
+         .btn-primary { background-color: #3B82F6; color: white; }
+         .btn-primary:hover { background-color: #2563EB; }
+         .btn-secondary { background-color: #6B7280; color: white; }
+         .btn-secondary:hover { background-color: #4B5563; }
+         .card { background-color: white; border-radius: 0.75rem; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
+         #triangleCanvas { width: 100%; height: 350px; border-radius: 0.5rem; cursor: grab; touch-action: none; } 
+         #triangleCanvas:active { cursor: grabbing; }
+         .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; }
+         .modal.active { opacity: 1; visibility: visible; }
+         .modal-content { background-color: white; padding: 2rem; border-radius: 0.75rem; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05); width: 90%; max-width: 400px; text-align: center; }
+         
+         .dark body { background-color: #111827; color: #F3F4F6; }
+         .dark .card { background-color: #1F2937; border-color: #374151; }
+         /* Dark mode styles for inputs, explicitly overriding light mode text color */
+         .dark .input-group select, .dark .input-group input { 
+             background-color: #374151; /* gray-700 */
+             color: #F3F4F6; /* gray-100 */
+             border-color: #4B5563; /* gray-600 */
+         }
+         .dark .modal-content { background-color: #1F2937; }
+         .dark #triangleCanvas { border: 1px solid #374151; }
+         .form-checkbox { border-radius: 0.25rem; border-color: #D1D5DB; }
+         .dark .form-checkbox { border-color: #4B5563; background-color: #374151; }
+         .dark .form-checkbox:checked { background-color: #3B82F6; border-color: #3B82F6;}
+
+         /* Precision select specific light mode */
+         #precisionSelect {
+             background-color: white;
+             color: #111827; /* gray-900 */
+             border: 1px solid #D1D5DB; /* gray-300 */
+         }
+         /* Precision select specific dark mode */
+         .dark #precisionSelect {
+            background-color: #374151; /* gray-700 */
+            color: #F3F4F6; /* gray-100 */
+            border-color: #4B5563; /* gray-600 */
+         }
+     </style>
+ </head>
+ <body class="bg-gray-100 min-h-screen flex flex-col items-center p-4 transition-colors duration-300">
+
+     <div class="w-full max-w-2xl space-y-6">
+         <header class="flex justify-between items-center mb-6">
+             <h1 class="text-3xl font-bold text-blue-600 dark:text-blue-400">Visualizador de Triángulos</h1>
+             <button id="themeToggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
+                 <svg id="themeIcon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+             </button>
+         </header>
+
+         <div class="card">
+             <h2 class="text-xl font-semibold mb-4">Ingresar Datos del Triángulo</h2>
+             <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Ingresa tres valores (al menos un lado). Los ángulos se ingresan en grados.</p>
+             <div id="inputsContainer" class="space-y-3 mb-4"></div>
+             <button id="calculateButton" class="btn btn-primary w-full">Calcular y Dibujar</button>
+         </div>
+
+         <div id="messageModal" class="modal">
+             <div class="modal-content">
+                 <h3 id="modalTitle" class="text-lg font-semibold mb-2">Mensaje</h3>
+                 <p id="modalMessage" class="text-sm mb-4"></p>
+                 <button id="closeModalButton" class="btn btn-primary">Entendido</button>
+             </div>
+         </div>
+
+         <div id="resultsCard" class="card hidden">
+             <h2 class="text-xl font-semibold mb-4">Resultados</h2>
+             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                 <div>
+                     <h3 class="text-lg font-medium mb-2">Dimensiones</h3>
+                     <ul class="space-y-1 text-sm">
+                         <li>Lado a: <span id="resLadoA" class="font-semibold"></span></li>
+                         <li>Lado b: <span id="resLadoB" class="font-semibold"></span></li>
+                         <li>Lado c: <span id="resLadoC" class="font-semibold"></span></li>
+                         <li>Ángulo A: <span id="resAnguloA" class="font-semibold"></span>°</li>
+                         <li>Ángulo B: <span id="resAnguloB" class="font-semibold"></span>°</li>
+                         <li>Ángulo C: <span id="resAnguloC" class="font-semibold"></span>°</li>
+                     </ul>
+                 </div>
+                 <div>
+                     <h3 class="text-lg font-medium mb-2">Propiedades</h3>
+                      <ul class="space-y-1 text-sm">
+                         <li>Perímetro: <span id="resPerimetro" class="font-semibold"></span></li>
+                         <li>Área: <span id="resArea" class="font-semibold"></span></li>
+                         <li id="resInradiusContainer" class="hidden">Radio Inscrito: <span id="resInradius" class="font-semibold"></span></li>
+                         <li id="resCircumradiusContainer" class="hidden">Radio Circunscrito: <span id="resCircumradius" class="font-semibold"></span></li>
+                     </ul>
+                     <div class="mt-4">
+                         <label for="precisionSelect" class="block text-sm font-medium mb-1">Precisión Decimal:</label>
+                         <select id="precisionSelect" class="w-full p-2 rounded-md">
+                             <option value="0">0</option> <option value="1">1</option> <option value="2" selected>2</option> <option value="3">3</option> <option value="4">4</option> <option value="5">5</option> <option value="6">6</option>
+                         </select>
+                     </div>
+                 </div>
+             </div>
+            
+             <div class="mt-6">
+                 <h3 class="text-lg font-medium mb-3">Mostrar Elementos Adicionales:</h3>
+                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 text-sm">
+                     <div><label class="flex items-center space-x-2"><input type="checkbox" id="chkMedians" class="form-checkbox text-blue-500"> <span>Medianas</span></label></div>
+                     <div><label class="flex items-center space-x-2"><input type="checkbox" id="chkAltitudes" class="form-checkbox text-green-500"> <span>Alturas</span></label></div>
+                     <div><label class="flex items-center space-x-2"><input type="checkbox" id="chkAngleBisectors" class="form-checkbox text-purple-500"> <span>Bisectrices</span></label></div>
+                     <div><label class="flex items-center space-x-2"><input type="checkbox" id="chkPerpBisectors" class="form-checkbox text-pink-500"> <span>Mediatrices</span></label></div>
+                     
+                     <div><label class="flex items-center space-x-2"><input type="checkbox" id="chkCentroid" class="form-checkbox text-blue-700"> <span>Baricentro (G)</span></label></div>
+                     <div><label class="flex items-center space-x-2"><input type="checkbox" id="chkOrthocenter" class="form-checkbox text-green-700"> <span>Ortocentro (H)</span></label></div>
+                     <div><label class="flex items-center space-x-2"><input type="checkbox" id="chkIncenter" class="form-checkbox text-purple-700"> <span>Incentro (I)</span></label></div>
+                     <div><label class="flex items-center space-x-2"><input type="checkbox" id="chkCircumcenter" class="form-checkbox text-pink-700"> <span>Circuncentro (O)</span></label></div>
+                     
+                     <div><label class="flex items-center space-x-2"><input type="checkbox" id="chkInscribedCircle" class="form-checkbox text-purple-500"> <span>Circ. Inscrita</span></label></div>
+                     <div><label class="flex items-center space-x-2"><input type="checkbox" id="chkCircumscribedCircle" class="form-checkbox text-pink-500"> <span>Circ. Circunscrita</span></label></div>
+                 </div>
+             </div>
+
+             <h3 class="text-lg font-medium mb-2 mt-6">Visualización del Triángulo</h3>
+             <div class="bg-gray-50 dark:bg-gray-900 p-2 rounded-md relative">
+                 <canvas id="triangleCanvas"></canvas>
+             </div>
+             <button id="exportButton" class="btn btn-secondary w-full mt-4">Exportar Imagen (PNG)</button>
+         </div>
+     </div>
+
+     <script>
+         const PI = Math.PI; const epsilon = 1e-9; 
+         const inputsContainer = document.getElementById('inputsContainer'); const calculateButton = document.getElementById('calculateButton'); const resultsCard = document.getElementById('resultsCard'); const canvas = document.getElementById('triangleCanvas'); const ctx = canvas.getContext('2d'); const precisionSelect = document.getElementById('precisionSelect'); const exportButton = document.getElementById('exportButton'); const themeToggle = document.getElementById('themeToggle'); const themeIcon = document.getElementById('themeIcon'); const messageModal = document.getElementById('messageModal'); const modalTitle = document.getElementById('modalTitle'); const modalMessage = document.getElementById('modalMessage'); const closeModalButton = document.getElementById('closeModalButton'); const resInradiusContainer = document.getElementById('resInradiusContainer'); const resInradius = document.getElementById('resInradius'); const resCircumradiusContainer = document.getElementById('resCircumradiusContainer'); const resCircumradius = document.getElementById('resCircumradius');
+         let currentTriangle = null; let calculatedElements = {}; let scaleFactor = 1.0; let panOffset = { x: 0, y: 0 }; let isPanning = false; let lastPanPosition = { x: 0, y: 0 }; let lastPinchDistance = 0;
+         const drawOptions = { medians: false, altitudes: false, angleBisectors: false, perpBisectors: false, centroid: false, orthocenter: false, incenter: false, circumcenter: false, inscribedCircle: false, circumscribedCircle: false };
+         const chkElements = { medians: document.getElementById('chkMedians'), altitudes: document.getElementById('chkAltitudes'), angleBisectors: document.getElementById('chkAngleBisectors'), perpBisectors: document.getElementById('chkPerpBisectors'), centroid: document.getElementById('chkCentroid'), orthocenter: document.getElementById('chkOrthocenter'), incenter: document.getElementById('chkIncenter'), circumcenter: document.getElementById('chkCircumcenter'), inscribedCircle: document.getElementById('chkInscribedCircle'), circumscribedCircle: document.getElementById('chkCircumscribedCircle'), };
+         const toRadians = (d) => d * PI / 180; const toDegrees = (r) => r * 180 / PI;
+         const formatNumber = (n) => { if(typeof n !=='number'||isNaN(n))return 'N/A'; return n.toFixed(parseInt(precisionSelect.value));};
+         function intersectLines(p1,p2,p3,p4){const d=(p1.x-p2.x)*(p3.y-p4.y)-(p1.y-p2.y)*(p3.x-p4.x);if(Math.abs(d)<epsilon)return null;const t=((p1.x-p3.x)*(p3.y-p4.y)-(p1.y-p3.y)*(p3.x-p4.x))/d;return{x:p1.x+t*(p2.x-p1.x),y:p1.y+t*(p2.y-p1.y)};}
+         function distance(p1,p2){return Math.sqrt((p1.x-p2.x)**2+(p1.y-p2.y)**2);}
+         function showModal(t,m){modalTitle.textContent=t;modalMessage.innerHTML=m;messageModal.classList.add('active');}
+         closeModalButton.addEventListener('click',()=>messageModal.classList.remove('active'));
+         function createInputGroup(i){const d=document.createElement('div');d.className='input-group';d.innerHTML=`<select id="inputType${i}" class="dark:bg-gray-700 dark:border-gray-600 dark:text-white"><option value="sideA">Lado a</option><option value="sideB">Lado b</option><option value="sideC">Lado c</option><option value="angleA">Ángulo A</option><option value="angleB">Ángulo B</option><option value="angleC">Ángulo C</option></select><input type="number" id="inputValue${i}" placeholder="Valor" step="any" class="dark:bg-gray-700 dark:border-gray-600 dark:text-white">`;inputsContainer.appendChild(d);}
+         for(let i=0;i<3;i++)createInputGroup(i);
+
+         function calculateTriangle() { currentTriangle=null;calculatedElements={};resultsCard.classList.add('hidden');resInradiusContainer.classList.add('hidden');resCircumradiusContainer.classList.add('hidden');scaleFactor=1.0;panOffset={x:0,y:0};const inputs=[];let sideCount=0;const definedValues={};for(let i=0;i<3;i++){const type=document.getElementById(`inputType${i}`).value;const valueStr=document.getElementById(`inputValue${i}`).value;if(valueStr===''){showModal('Error','Completa los 3 campos.');return;}const value=parseFloat(valueStr);if(type.startsWith('angle')){if(isNaN(value)||value<=0||value>=180){showModal('Error',`Ángulo '${type}' inválido (0-180).`);return;}}else if(type.startsWith('side')){if(isNaN(value)||value<=0){showModal('Error',`Lado '${type}' debe ser > 0.`);return;}}else if(isNaN(value)){showModal('Error',`Valor '${type}' debe ser número.`);return;}if(definedValues[type]){showModal('Error',`'${type}' definido múltiples veces.`);return;}definedValues[type]=true;inputs.push({type,value});if(type.startsWith('side'))sideCount++;}if(inputs.length!==3){showModal('Error','Ingresa 3 valores.');return;}if(sideCount===0){showModal('Error','Al menos un lado.');return;}let{sA,sB,sC,angA,angB,angC}=parseInputs(inputs);try{const solution=solveTriangle(sA,sB,sC,angA,angB,angC);currentTriangle=solution;calculateSpecialElements();displayResults(solution);resultsCard.classList.remove('hidden');updateLastCalculatedGeometry();requestAnimationFrame(drawTriangle);}catch(error){showModal('Error Cálculo',error.message);currentTriangle=null;resultsCard.classList.add('hidden');}}
+         function parseInputs(inputs){let sA,sB,sC,angA,angB,angC;inputs.forEach(input=>{switch(input.type){case 'sideA':sA=input.value;break;case 'sideB':sB=input.value;break;case 'sideC':sC=input.value;break;case 'angleA':angA=toRadians(input.value);break;case 'angleB':angB=toRadians(input.value);break;case 'angleC':angC=toRadians(input.value);break;}});return{sA,sB,sC,angA,angB,angC};}
+         
+         function solveTriangle(a_in, b_in, c_in, A_in, B_in, C_in) { /* ... (same as previous, robust version) ... */ 
+            let a = a_in, b = b_in, c = c_in, A = A_in, B = B_in, C = C_in; 
+            const known = { a: a_in !== undefined, b: b_in !== undefined, c: c_in !== undefined, A: A_in !== undefined, B: B_in !== undefined, C: C_in !== undefined };
+            const knownSideCount = (known.a?1:0) + (known.b?1:0) + (known.c?1:0);
+            const knownAngleCount = (known.A?1:0) + (known.B?1:0) + (known.C?1:0);
+
+            if (knownSideCount === 3) { // SSS
+                if(a+b<=c+epsilon||a+c<=b+epsilon||b+c<=a+epsilon)throw new Error("Desigualdad triangular (SSS).");
+                if(Math.abs((a+b)-c)<epsilon||Math.abs((a+c)-b)<epsilon||Math.abs((b+c)-a)<epsilon)throw new Error("Triángulo degenerado (SSS).");
+                let cosA_calc=(b*b+c*c-a*a)/(2*b*c);let cosB_calc=(a*a+c*c-b*b)/(2*a*c);
+                if(cosA_calc>1+epsilon||cosA_calc<-1-epsilon||cosB_calc>1+epsilon||cosB_calc<-1-epsilon)throw new Error("Valor de coseno fuera de rango [-1, 1] (SSS).");
+                A=Math.acos(Math.max(-1,Math.min(1,cosA_calc)));B=Math.acos(Math.max(-1,Math.min(1,cosB_calc)));C=PI-A-B;
+                if(A<=epsilon||B<=epsilon||C<=epsilon||isNaN(A)||isNaN(B)||isNaN(C))throw new Error("Ángulo calculado no positivo o NaN (SSS).");
+            } else if (knownSideCount === 1 && knownAngleCount === 2) { // ASA or AAS
+                let sumAng=0;if(A!==undefined)sumAng+=A;if(B!==undefined)sumAng+=B;if(C!==undefined)sumAng+=C;
+                if(sumAng>=PI-epsilon)throw new Error("Suma de ángulos conocidos es >= 180° (ASA/AAS).");
+                if(A===undefined)A=PI-B-C;else if(B===undefined)B=PI-A-C;else C=PI-A-B;
+                if(A<=epsilon||B<=epsilon||C<=epsilon||A>=PI||B>=PI||C>=PI)throw new Error("Ángulo calculado inválido (ASA/AAS).");
+                if(Math.sin(A)<epsilon||Math.sin(B)<epsilon||Math.sin(C)<epsilon)throw new Error("Seno de ángulo cero o 180°, división por cero (ASA/AAS).");
+                if(known.a){b=a*Math.sin(B)/Math.sin(A);c=a*Math.sin(C)/Math.sin(A);}
+                else if(known.b){a=b*Math.sin(A)/Math.sin(B);c=b*Math.sin(C)/Math.sin(B);}
+                else if(known.c){a=c*Math.sin(A)/Math.sin(C);b=c*Math.sin(B)/Math.sin(C);}
+                if(a<=epsilon||b<=epsilon||c<=epsilon||isNaN(a)||isNaN(b)||isNaN(c))throw new Error("Lado calculado no positivo o NaN (ASA/AAS).");
+            } else if (knownSideCount === 2 && knownAngleCount === 1) { // SAS or SSA
+                let isSASCase = false;
+                if (known.A && known.b && known.c) isSASCase = true; 
+                else if (known.B && known.a && known.c) isSASCase = true; 
+                else if (known.C && known.a && known.b) isSASCase = true; 
+
+                if (isSASCase) { // SAS
+                    if (A !== undefined && b !== undefined && c !== undefined) { if(A<=epsilon||A>=PI-epsilon)throw new Error("Ángulo A en SAS inválido.");a=Math.sqrt(b*b+c*c-2*b*c*Math.cos(A));if(a<=epsilon)throw new Error("Lado 'a' SAS no positivo.");let sinB_calc=b*Math.sin(A)/a;if(sinB_calc>1+epsilon||sinB_calc<-(1+epsilon))throw new Error("SAS sin(B) fuera rango.");B=Math.asin(Math.max(-1,Math.min(1,sinB_calc)));C=PI-A-B;}
+                    else if (B !== undefined && a !== undefined && c !== undefined) { if(B<=epsilon||B>=PI-epsilon)throw new Error("Ángulo B en SAS inválido.");b=Math.sqrt(a*a+c*c-2*a*c*Math.cos(B));if(b<=epsilon)throw new Error("Lado 'b' SAS no positivo.");let sinA_calc=a*Math.sin(B)/b;if(sinA_calc>1+epsilon||sinA_calc<-(1+epsilon))throw new Error("SAS sin(A) fuera de rango.");A=Math.asin(Math.max(-1,Math.min(1,sinA_calc)));C=PI-B-A;}
+                    else if (C !== undefined && a !== undefined && b !== undefined) { if(C<=epsilon||C>=PI-epsilon)throw new Error("Ángulo C en SAS inválido.");c=Math.sqrt(a*a+b*b-2*a*b*Math.cos(C));if(c<=epsilon)throw new Error("Lado 'c' SAS no positivo.");let sinA_calc=a*Math.sin(C)/c;if(sinA_calc>1+epsilon||sinA_calc<-(1+epsilon))throw new Error("SAS sin(A) fuera de rango.");A=Math.asin(Math.max(-1,Math.min(1,sinA_calc)));B=PI-C-A;}
+                } else { // SSA
+                    let KA, sOp, sAdj;
+                    if (known.A && known.a) { KA = A; sOp = a; sAdj = (known.b ? b : c); }
+                    else if (known.B && known.b) { KA = B; sOp = b; sAdj = (known.a ? a : c); }
+                    else if (known.C && known.c) { KA = C; sOp = c; sAdj = (known.a ? a : b); }
+                    else { throw new Error("Error interno: Configuración SSA no identificada."); }
+
+                    if (KA <= epsilon || KA >= PI - epsilon) throw new Error(`Ángulo SSA (${toDegrees(KA).toFixed(1)}°) debe ser >0 y <180.`);
+                    let angleAdjCalculated, angleRemaining, sideRemaining;
+
+                    if (KA >= PI/2 - epsilon) { 
+                        if (sOp <= sAdj + epsilon) throw new Error(`SSA Obtuso: Lado opuesto (${sOp.toFixed(2)}) no es mayor que lado adyacente (${sAdj.toFixed(2)}).`);
+                        let sinAngleAdj = sAdj * Math.sin(KA) / sOp;
+                        if (sinAngleAdj > 1 + epsilon || sinAngleAdj < -1 - epsilon ) throw new Error(`SSA Obtuso: sin(${sinAngleAdj.toFixed(4)}) fuera de rango [-1, 1].`);
+                        angleAdjCalculated = Math.asin(Math.max(-1, Math.min(1, sinAngleAdj)));
+                    } else { 
+                        const h = sAdj * Math.sin(KA);
+                        if (sOp < h - epsilon) throw new Error(`SSA Agudo: Lado opuesto (${sOp.toFixed(2)}) < altura (${h.toFixed(2)}). No hay solución.`);
+                        let sinAngleAdj = sAdj * Math.sin(KA) / sOp;
+                        if (sinAngleAdj > 1 + epsilon) sinAngleAdj = 1; 
+                        angleAdjCalculated = Math.asin(sinAngleAdj); 
+                        if (!(Math.abs(sOp - h) < epsilon) && !(sOp >= sAdj + epsilon) && (h < sOp && sOp < sAdj) ) { // Only check for second solution in h < sOp < sAdj
+                            let angleRemainingAcute = PI - KA - angleAdjCalculated;
+                            if (angleRemainingAcute <= epsilon) { 
+                                let angleAdjObtuse = PI - angleAdjCalculated;
+                                let angleRemainingObtuse = PI - KA - angleAdjObtuse;
+                                if (angleRemainingObtuse > epsilon) { angleAdjCalculated = angleAdjObtuse; } 
+                                else { throw new Error("SSA Agudo (h < sOp < sAdj): Ambas soluciones (aguda y obtusa) para el ángulo adyacente resultan en un tercer ángulo inválido."); }
+                            }
+                        }
+                    }
+                    angleRemaining = PI - KA - angleAdjCalculated;
+                    if (angleRemaining <= epsilon) throw new Error("SSA: Ángulo restante calculado no es positivo.");
+                    sideRemaining = sOp * Math.sin(angleRemaining) / Math.sin(KA);
+
+                    if (A_in === KA) { A = KA; a = sOp; if (b_in === sAdj) { B = angleAdjCalculated; C = angleRemaining; c = sideRemaining; } else { C = angleAdjCalculated; B = angleRemaining; b = sideRemaining; }}
+                    else if (B_in === KA) { B = KA; b = sOp; if (a_in === sAdj) { A = angleAdjCalculated; C = angleRemaining; c = sideRemaining; } else { C = angleAdjCalculated; A = angleRemaining; a = sideRemaining; }}
+                    else { C = KA; c = sOp; if (a_in === sAdj) { A = angleAdjCalculated; B = angleRemaining; b = sideRemaining; } else { B = angleAdjCalculated; A = angleRemaining; a = sideRemaining; }}
+                } 
+            } else { throw new Error("Combinación de entradas no soportada o insuficiente."); }
+
+            if(a<=epsilon||b<=epsilon||c<=epsilon||A<=epsilon||B<=epsilon||C<=epsilon||isNaN(A)||isNaN(B)||isNaN(C))throw new Error("Resultado final inválido (lado/ángulo no positivo o NaN).");
+            if(Math.abs(A+B+C-PI)>1e-5)throw new Error(`Ángulos no suman 180°. Suma: ${toDegrees(A+B+C).toFixed(1)}°`);
+            if(a+b<=c+epsilon||a+c<=b+epsilon||b+c<=a+epsilon)throw new Error("Desigualdad triangular (calculado) no cumplida.");
+            return {a,b,c,A_rad:A,B_rad:B,C_rad:C};
+         }
+         function calculateSpecialElements() { /* ... (same as before) ... */ 
+            if(!currentTriangle)return;const{a,b,c,A_rad,B_rad,C_rad}=currentTriangle;
+            const pA={x:0,y:0};const pB={x:c,y:0};const pC={x:b*Math.cos(A_rad),y:b*Math.sin(A_rad)};calculatedElements.vertices={pA,pB,pC};
+            const midAB={x:(pA.x+pB.x)/2,y:(pA.y+pB.y)/2};const midBC={x:(pB.x+pC.x)/2,y:(pB.y+pC.y)/2};const midCA={x:(pC.x+pA.x)/2,y:(pC.y+pA.y)/2};calculatedElements.midpoints={midAB,midBC,midCA};
+            calculatedElements.medians=[{p1:pA,p2:midBC},{p1:pB,p2:midCA},{p1:pC,p2:midAB}];calculatedElements.centroid={x:(pA.x+pB.x+pC.x)/3,y:(pA.y+pB.y+pC.y)/3};
+            const perimeter=a+b+c;if(perimeter>epsilon){calculatedElements.incenter={x:(a*pA.x+b*pB.x+c*pC.x)/perimeter,y:(a*pA.y+b*pB.y+c*pC.y)/perimeter};calculatedElements.angleBisectors=[{p1:pA,p2:calculatedElements.incenter},{p1:pB,p2:calculatedElements.incenter},{p1:pC,p2:calculatedElements.incenter}];const s=perimeter/2;const robustArea=Math.sqrt(Math.max(0,s*(s-a)*(s-b)*(s-c)));calculatedElements.inradius=(perimeter>epsilon)?(2*robustArea)/perimeter:0;}
+            function getPerpendicularBisector(pt1,pt2,midPt){if(Math.abs(pt1.y-pt2.y)<epsilon){return{p1:{x:midPt.x,y:midPt.y-1000},p2:{x:midPt.x,y:midPt.y+1000}};}if(Math.abs(pt1.x-pt2.x)<epsilon){return{p1:{x:midPt.x-1000,y:midPt.y},p2:{x:midPt.x+1000,y:midPt.y}};}const slope=(pt2.y-pt1.y)/(pt2.x-pt1.x);const perpSlope=-1/slope;const p_other1={x:midPt.x-10,y:midPt.y-10*perpSlope};const p_other2={x:midPt.x+10,y:midPt.y+10*perpSlope};return{p1:midPt,p2:p_other1,p3_for_intersect:p_other2};}
+            const pb_AB_line=getPerpendicularBisector(pA,pB,midAB);const pb_BC_line=getPerpendicularBisector(pB,pC,midBC);const pb_CA_line=getPerpendicularBisector(pC,pA,midCA);calculatedElements.perpBisectors=[pb_AB_line,pb_BC_line,pb_CA_line];
+            calculatedElements.circumcenter=intersectLines(pb_AB_line.p1,pb_AB_line.p2,pb_BC_line.p1,pb_BC_line.p3_for_intersect?pb_BC_line.p3_for_intersect:pb_BC_line.p2);if(calculatedElements.circumcenter){calculatedElements.circumradius=distance(calculatedElements.circumcenter,pA);}else{calculatedElements.circumcenter=intersectLines(pb_AB_line.p1,pb_AB_line.p2,pb_CA_line.p1,pb_CA_line.p3_for_intersect?pb_CA_line.p3_for_intersect:pb_CA_line.p2);if(calculatedElements.circumcenter)calculatedElements.circumradius=distance(calculatedElements.circumcenter,pA);}
+            function getAltitudeLine(vertex,oppP1,oppP2){if(Math.abs(oppP1.y-oppP2.y)<epsilon){return{p1:vertex,p2:{x:vertex.x,y:oppP1.y}};}if(Math.abs(oppP1.x-oppP2.x)<epsilon){return{p1:vertex,p2:{x:oppP1.x,y:vertex.y}};}const slopeOpp=(oppP2.y-oppP1.y)/(oppP2.x-oppP1.x);const slopeAlt=-1/slopeOpp;const x_foot=(slopeOpp*oppP1.x-slopeAlt*vertex.x+vertex.y-oppP1.y)/(slopeOpp-slopeAlt);const y_foot=slopeOpp*(x_foot-oppP1.x)+oppP1.y;const foot={x:x_foot,y:y_foot};return{p1:vertex,p2:foot};}
+            calculatedElements.altitudes=[getAltitudeLine(pA,pB,pC),getAltitudeLine(pB,pC,pA),getAltitudeLine(pC,pA,pB)];calculatedElements.orthocenter=intersectLines(calculatedElements.altitudes[0].p1,calculatedElements.altitudes[0].p2,calculatedElements.altitudes[1].p1,calculatedElements.altitudes[1].p2);if(!calculatedElements.orthocenter){calculatedElements.orthocenter=intersectLines(calculatedElements.altitudes[0].p1,calculatedElements.altitudes[0].p2,calculatedElements.altitudes[2].p1,calculatedElements.altitudes[2].p2);}
+         }
+         function displayResults(triangle) { 
+            document.getElementById('resLadoA').textContent=formatNumber(triangle.a);document.getElementById('resLadoB').textContent=formatNumber(triangle.b);document.getElementById('resLadoC').textContent=formatNumber(triangle.c);document.getElementById('resAnguloA').textContent=formatNumber(toDegrees(triangle.A_rad));document.getElementById('resAnguloB').textContent=formatNumber(toDegrees(triangle.B_rad));document.getElementById('resAnguloC').textContent=formatNumber(toDegrees(triangle.C_rad));const perimeter=triangle.a+triangle.b+triangle.c;const s=perimeter/2;let area;if(s<triangle.a-epsilon||s<triangle.b-epsilon||s<triangle.c-epsilon||(s*(s-triangle.a)*(s-triangle.b)*(s-triangle.c))<-epsilon){area=0;}else{area=Math.sqrt(Math.max(0,s*(s-triangle.a)*(s-triangle.b)*(s-triangle.c)));}
+            document.getElementById('resPerimetro').textContent=formatNumber(perimeter);document.getElementById('resArea').textContent=formatNumber(area);if(calculatedElements.inradius){resInradius.textContent=formatNumber(calculatedElements.inradius);resInradiusContainer.classList.remove('hidden');}else{resInradiusContainer.classList.add('hidden');}if(calculatedElements.circumradius){resCircumradius.textContent=formatNumber(calculatedElements.circumradius);resCircumradiusContainer.classList.remove('hidden');}else{resCircumradiusContainer.classList.add('hidden');}
+         }
+         function drawTriangle() { 
+             if (!currentTriangle||!calculatedElements.vertices) return; const { a,b,c,A_rad,B_rad,C_rad } = currentTriangle; const { vertices,medians,centroid,altitudes,orthocenter,angleBisectors,incenter,inradius,perpBisectors,circumcenter,circumradius } = calculatedElements; const pA=vertices.pA,pB=vertices.pB,pC=vertices.pC;
+             const dpr=window.devicePixelRatio||1; const rect=canvas.getBoundingClientRect(); canvas.width=rect.width*dpr; canvas.height=rect.height*dpr; ctx.scale(dpr,dpr); ctx.clearRect(0,0,canvas.width/dpr,canvas.height/dpr); ctx.save();
+             const minX=Math.min(pA.x,pB.x,pC.x),maxX=Math.max(pA.x,pB.x,pC.x),minY=Math.min(pA.y,pB.y,pC.y),maxY=Math.max(pA.y,pB.y,pC.y); const triW=maxX-minX,triH=maxY-minY;
+             const padding=50; const drawW=canvas.width/dpr-2*padding,drawH=canvas.height/dpr-2*padding; if(drawW<=0||drawH<=0||triW<1e-6||triH<1e-6){ctx.restore();return;}
+             let scaleFitGeom=Math.min(drawW/triW,drawH/triH)*0.85; const currentDisplayScale=scaleFitGeom*scaleFactor;
+             const triCenterX=minX+triW/2,triCenterY=minY+triH/2;
+             ctx.translate(canvas.width/(2*dpr)+panOffset.x,canvas.height/(2*dpr)+panOffset.y);ctx.scale(currentDisplayScale,currentDisplayScale);ctx.translate(-triCenterX,-triCenterY);
+             const scrLineWidth=1.5,baseLineWidth=scrLineWidth/currentDisplayScale,ptRadius=3/currentDisplayScale,specialPtRadius=4/currentDisplayScale;
+             const colors={triStroke:document.documentElement.classList.contains('dark')?'#60A5FA':'#2563EB',median:document.documentElement.classList.contains('dark')?'#A3E635':'#84CC16',altitude:document.documentElement.classList.contains('dark')?'#F472B6':'#EC4899',angleBisector:document.documentElement.classList.contains('dark')?'#818CF8':'#6366F1',perpBisector:document.documentElement.classList.contains('dark')?'#2DD4BF':'#14B8A6',centroid:document.documentElement.classList.contains('dark')?'#C084FC':'#A855F7',orthocenter:document.documentElement.classList.contains('dark')?'#FB923C':'#F97316',incenter:document.documentElement.classList.contains('dark')?'#FACC15':'#EAB308',circumcenter:document.documentElement.classList.contains('dark')?'#67E8F9':'#06B6D4',inscCirc:document.documentElement.classList.contains('dark')?'#FACC15':'#EAB308',circCirc:document.documentElement.classList.contains('dark')?'#67E8F9':'#06B6D4',
+                         label: document.documentElement.classList.contains('dark') ? '#CBD5E1' : '#FFFFFF', // White for light mode canvas labels
+                         value: document.documentElement.classList.contains('dark') ? '#E5E7EB' : '#FFFFFF', // White for light mode canvas values
+                         angArcs:[document.documentElement.classList.contains('dark')?'#FDE047':'#FACC15',document.documentElement.classList.contains('dark')?'#FCA5A5':'#F87171',document.documentElement.classList.contains('dark')?'#FDBA74':'#FB923C']};
+             function drawLine(p1,p2,clr,dash=[],ext=1){if(!p1||!p2)return;let p1e=p1,p2e=p2;if(ext!==1){const dx=p2.x-p1.x,dy=p2.y-p1.y;p2e={x:p1.x+dx*ext,y:p1.y+dy*ext};if(ext>1.1)p1e={x:p1.x-dx*(ext-1)*0.3,y:p1.y-dy*(ext-1)*0.3};}ctx.beginPath();ctx.moveTo(p1e.x,p1e.y);ctx.lineTo(p2e.x,p2e.y);ctx.strokeStyle=clr;ctx.lineWidth=baseLineWidth*0.8;ctx.setLineDash(dash.map(d=>d/currentDisplayScale));ctx.stroke();ctx.setLineDash([]);}
+             function drawLabeledPoint(p,lbl,clr,rad=specialPtRadius){if(!p)return;ctx.beginPath();ctx.arc(p.x,p.y,rad,0,2*PI);ctx.fillStyle=clr;ctx.fill();ctx.fillStyle=colors.label;ctx.font=`bold ${12/currentDisplayScale}px Arial`;ctx.fillText(lbl,p.x+rad*1.5,p.y-rad*1.5);}
+             function drawCircle(ctr,rad,clr){if(!ctr||!rad||rad<epsilon)return;ctx.beginPath();ctx.arc(ctr.x,ctr.y,rad,0,2*PI);ctx.strokeStyle=clr;ctx.lineWidth=baseLineWidth*0.7;ctx.setLineDash([5/currentDisplayScale,3/currentDisplayScale]);ctx.stroke();ctx.setLineDash([]);}
+             const lineExt=Math.max(a,b,c)*0.5; 
+             if(drawOptions.medians&&medians)medians.forEach(m=>drawLine(m.p1,m.p2,colors.median,[5,3]));if(drawOptions.centroid&&centroid)drawLabeledPoint(centroid,"G",colors.centroid);
+             if(drawOptions.altitudes&&altitudes)altitudes.forEach(alt=>drawLine(alt.p1,alt.p2,colors.altitude,[2,2],1+lineExt/distance(alt.p1,alt.p2)));if(drawOptions.orthocenter&&orthocenter)drawLabeledPoint(orthocenter,"H",colors.orthocenter);
+             if(drawOptions.angleBisectors&&angleBisectors)angleBisectors.forEach(ab=>drawLine(ab.p1,ab.p2,colors.angleBisector,[7,3,2,3],1+lineExt/distance(ab.p1,ab.p2)));if(drawOptions.incenter&&incenter)drawLabeledPoint(incenter,"I",colors.incenter);if(drawOptions.inscribedCircle&&incenter&&inradius)drawCircle(incenter,inradius,colors.inscCirc);
+             if(drawOptions.perpBisectors&&perpBisectors){perpBisectors.forEach(pb=>{if(!pb||!pb.p1||!pb.p2)return;const dx=pb.p2.x-pb.p1.x,dy=pb.p2.y-pb.p1.y;const len=Math.sqrt(dx*dx+dy*dy);if(len<epsilon)return;const ext=Math.max(a,b,c)*1.0/len;const p_s={x:pb.p1.x-dx*ext,y:pb.p1.y-dy*ext};const p_e={x:pb.p1.x+dx*ext,y:pb.p1.y+dy*ext};drawLine(p_s,p_e,colors.perpBisector,[10,4]);});}
+             if(drawOptions.circumcenter&&circumcenter)drawLabeledPoint(circumcenter,"O",colors.circumcenter);if(drawOptions.circumscribedCircle&&circumcenter&&circumradius)drawCircle(circumcenter,circumradius,colors.circCirc);
+             ctx.beginPath();ctx.moveTo(pA.x,pA.y);ctx.lineTo(pB.x,pB.y);ctx.lineTo(pC.x,pC.y);ctx.closePath();ctx.fillStyle=document.documentElement.classList.contains('dark')?'rgba(59,130,246,0.4)':'rgba(96,165,250,0.5)';ctx.fill();ctx.strokeStyle=colors.triStroke;ctx.lineWidth=baseLineWidth;ctx.stroke();
+             const valFontSize=13,vtxNameFontSize=15;const geomValFS=valFontSize/currentDisplayScale,geomVtxNameFS=vtxNameFontSize/currentDisplayScale;
+             const vtxNameFont=`bold ${geomVtxNameFS}px Arial`,valFont=`${geomValFS}px Arial`;
+             const scrLblOff=12,geomLblOff=scrLblOff/currentDisplayScale;const scrAngValOff=18,geomAngValOff=scrAngValOff/currentDisplayScale;const scrVtxLblOff=8,geomVtxLblOff=scrVtxLblOff/currentDisplayScale;const scrArcRad=19,geomArcRad=scrArcRad/currentDisplayScale;
+             ctx.fillStyle=colors.label;ctx.font=vtxNameFont;ctx.lineWidth=(scrLineWidth+1)/currentDisplayScale;
+             ctx.fillText("A",pA.x-geomVtxLblOff*1.5,pA.y-geomVtxLblOff*1.5);ctx.beginPath();ctx.arc(pA.x,pA.y,geomArcRad,0,A_rad,false);ctx.strokeStyle=colors.angArcs[0];ctx.stroke();
+             const vBC={x:pC.x-pB.x,y:pC.y-pB.y},vBA={x:pA.x-pB.x,y:pA.y-pB.y};const angBC=Math.atan2(vBC.y,vBC.x),angBA=Math.atan2(vBA.y,vBA.x);let crossB=vBC.x*vBA.y-vBC.y*vBA.x;ctx.beginPath();ctx.arc(pB.x,pB.y,geomArcRad,angBC,angBA,crossB<0);ctx.strokeStyle=colors.angArcs[1];ctx.stroke();
+             const lBAn={x:pA.x-pB.x,y:pA.y-pB.y};const l_BA=Math.sqrt(lBAn.x**2+lBAn.y**2);if(l_BA>epsilon){lBAn.x/=l_BA;lBAn.y/=l_BA;}const lBCn={x:pC.x-pB.x,y:pC.y-pB.y};const l_BC=Math.sqrt(lBCn.x**2+lBCn.y**2);if(l_BC>epsilon){lBCn.x/=l_BC;lBCn.y/=l_BC;}let bBx=lBAn.x+lBCn.x,bBy=lBAn.y+lBCn.y;let lenBB=Math.sqrt(bBx**2+bBy**2);if(lenBB>epsilon){bBx/=lenBB;bBy/=lenBB;}else{bBx=lBAn.y;bBy=-lBAn.x;}ctx.fillText("B",pB.x+geomVtxLblOff*1.5*bBx,pB.y+geomVtxLblOff*1.5*bBy);
+             const vCA={x:pA.x-pC.x,y:pA.y-pC.y},vCB={x:pB.x-pC.x,y:pB.y-pC.y};const angCA=Math.atan2(vCA.y,vCA.x),angCB=Math.atan2(vCB.y,vCB.x);let crossC=vCA.x*vCB.y-vCA.y*vCB.x;ctx.beginPath();ctx.arc(pC.x,pC.y,geomArcRad,angCA,angCB,crossC<0);ctx.strokeStyle=colors.angArcs[2];ctx.stroke();
+             const lCAn={x:pA.x-pC.x,y:pA.y-pC.y};const l_CA=Math.sqrt(lCAn.x**2+lCAn.y**2);if(l_CA>epsilon){lCAn.x/=l_CA;lCAn.y/=l_CA;}const lCBn={x:pB.x-pC.x,y:pB.y-pC.y};const l_CB=Math.sqrt(lCBn.x**2+lCBn.y**2);if(l_CB>epsilon){lCBn.x/=l_CB;lCBn.y/=l_CB;}let bCx=lCAn.x+lCBn.x,bCy=lCAn.y+lCBn.y;let lenCC=Math.sqrt(bCx**2+bCy**2);if(lenCC>epsilon){bCx/=lenCC;bCy/=lenCC;}else{bCx=lCAn.y;bCy=-lCAn.x;}ctx.fillText("C",pC.x+geomVtxLblOff*1.5*bCx,pC.y+geomVtxLblOff*1.5*bCy);
+             ctx.fillStyle=colors.value;ctx.font=valFont;ctx.lineWidth=baseLineWidth;
+             ctx.fillText(`c=${formatNumber(c)}`,(pA.x+pB.x)/2,(pA.y+pB.y)/2-geomLblOff);const mACx=(pA.x+pC.x)/2,mACy=(pA.y+pC.y)/2;let nACx=-(pC.y-pA.y),nACy=(pC.x-pA.x);let lAC=Math.sqrt(nACx**2+nACy**2);if(lAC<epsilon){nACx=0;nACy=-1;lAC=1;}ctx.fillText(`b=${formatNumber(b)}`,mACx+geomLblOff*nACx/lAC,mACy+geomLblOff*nACy/lAC);const mBCx=(pB.x+pC.x)/2,mBCy=(pB.y+pC.y)/2;let nBCx=-(pC.y-pB.y),nBCy=(pC.x-pB.x);let lBC=Math.sqrt(nBCx**2+nBCy**2);if(lBC<epsilon){nBCx=0;nBCy=-1;lBC=1;}ctx.fillText(`a=${formatNumber(a)}`,mBCx+geomLblOff*nBCx/lBC,mBCy+geomLblOff*nBCy/lBC);
+             const angValOffM=2.5;if(A_rad>epsilon)ctx.fillText(`${formatNumber(toDegrees(A_rad))}°`,pA.x+geomAngValOff*angValOffM*Math.cos(A_rad/2),pA.y+geomAngValOff*angValOffM*Math.sin(A_rad/2));if(lenBB>epsilon&&B_rad>epsilon)ctx.fillText(`${formatNumber(toDegrees(B_rad))}°`,pB.x+geomAngValOff*angValOffM*bBx,pB.y+geomAngValOff*angValOffM*bBy);if(lenCC>epsilon&&C_rad>epsilon)ctx.fillText(`${formatNumber(toDegrees(C_rad))}°`,pC.x+geomAngValOff*angValOffM*bCx,pC.y+geomAngValOff*angValOffM*bCy);
+             ctx.restore();
+         }
+
+        canvas.addEventListener('mousedown', (e) => { isPanning = true; lastPanPosition = { x: e.clientX, y: e.clientY }; canvas.style.cursor = 'grabbing'; });
+        canvas.addEventListener('mouseup', () => { isPanning = false; canvas.style.cursor = 'grab'; });
+        canvas.addEventListener('mouseleave', () => { isPanning = false; canvas.style.cursor = 'grab'; });
+        canvas.addEventListener('mousemove', (e) => { if (!isPanning || !currentTriangle) return; const dx = e.clientX - lastPanPosition.x; const dy = e.clientY - lastPanPosition.y; panOffset.x += dx; panOffset.y += dy; lastPanPosition = { x: e.clientX, y: e.clientY }; requestAnimationFrame(drawTriangle); });
+        canvas.addEventListener('wheel', (e) => { if (!currentTriangle) return; e.preventDefault(); updateLastCalculatedGeometry(); const zoomIntensity = 0.1; const direction = e.deltaY < 0 ? 1 : -1; const oldScaleFactor = scaleFactor; scaleFactor *= (1 + direction * zoomIntensity); scaleFactor = Math.max(0.05, Math.min(scaleFactor, 20)); const rect = canvas.getBoundingClientRect(); const mouseX = e.clientX - rect.left; const mouseY = e.clientY - rect.top; const geom = lastCalculatedGeometry; const worldMouseX = (mouseX - (rect.width/2 + panOffset.x)) / (geom.scaleToFit * oldScaleFactor) + (geom.minX + geom.width/2); const worldMouseY = (mouseY - (rect.height/2 + panOffset.y)) / (geom.scaleToFit * oldScaleFactor) + (geom.minY + geom.height/2); panOffset.x = mouseX - rect.width/2 - (worldMouseX - (geom.minX + geom.width/2)) * (geom.scaleToFit * scaleFactor); panOffset.y = mouseY - rect.height/2 - (worldMouseY - (geom.minY + geom.height/2)) * (geom.scaleToFit * scaleFactor); requestAnimationFrame(drawTriangle); });
+        let lastCalculatedGeometry = {minX:0, minY:0, width:0, height:0, scaleToFit:1};
+        function updateLastCalculatedGeometry() { if (!currentTriangle) { lastCalculatedGeometry = {minX:0, minY:0, width:0, height:0, scaleToFit:1}; return; } const { a, b, c, A_rad } = currentTriangle; let pA = { x: 0, y: 0 }; let pB = { x: c, y: 0 }; let pC = { x: b * Math.cos(A_rad), y: b * Math.sin(A_rad) }; const minX = Math.min(pA.x, pB.x, pC.x); const maxX = Math.max(pA.x, pB.x, pC.x); const minY = Math.min(pA.y, pB.y, pC.y); const maxY = Math.max(pA.y, pB.y, pC.y); const triangleWidth = maxX - minX; const triangleHeight = maxY - minY; const padding = 50; const canvasRect = canvas.getBoundingClientRect(); const canvasDrawableWidth = canvasRect.width - 2 * padding; const canvasDrawableHeight = canvasRect.height - 2 * padding; let scaleToFit = 1; if (triangleWidth > epsilon && triangleHeight > epsilon && canvasDrawableWidth > 0 && canvasDrawableHeight > 0) { scaleToFit = Math.min(canvasDrawableWidth / triangleWidth, canvasDrawableHeight / triangleHeight) * 0.85; } lastCalculatedGeometry = { minX, minY, width: triangleWidth, height: triangleHeight, scaleToFit }; }
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); if (e.touches.length === 1) { isPanning = true; lastPanPosition = { x: e.touches[0].clientX, y: e.touches[0].clientY }; } else if (e.touches.length === 2) { isPanning = false; lastPinchDistance = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); updateLastCalculatedGeometry(); } });
+        canvas.addEventListener('touchend', (e) => { e.preventDefault(); isPanning = false; lastPinchDistance = 0; });
+        canvas.addEventListener('touchmove', (e) => { e.preventDefault(); if (!currentTriangle) return; if (e.touches.length === 1 && isPanning) { const dx = e.touches[0].clientX - lastPanPosition.x; const dy = e.touches[0].clientY - lastPanPosition.y; panOffset.x += dx; panOffset.y += dy; lastPanPosition = { x: e.touches[0].clientX, y: e.touches[0].clientY }; } else if (e.touches.length === 2) { const currentPinchDistance = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); if (lastPinchDistance > 0) { const oldScaleFactor = scaleFactor; scaleFactor *= currentPinchDistance / lastPinchDistance; scaleFactor = Math.max(0.05, Math.min(scaleFactor, 20)); const rect = canvas.getBoundingClientRect(); const pinchCenterX = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left; const pinchCenterY = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top; const geom = lastCalculatedGeometry; const worldPinchX = (pinchCenterX - (rect.width/2 + panOffset.x)) / (geom.scaleToFit * oldScaleFactor) + (geom.minX + geom.width/2); const worldPinchY = (pinchCenterY - (rect.height/2 + panOffset.y)) / (geom.scaleToFit * oldScaleFactor) + (geom.minY + geom.height/2); panOffset.x = pinchCenterX - rect.width/2 - (worldPinchX - (geom.minX + geom.width/2)) * (geom.scaleToFit * scaleFactor); panOffset.y = pinchCenterY - rect.height/2 - (worldPinchY - (geom.minY + geom.height/2)) * (geom.scaleToFit * scaleFactor); } lastPinchDistance = currentPinchDistance; } requestAnimationFrame(drawTriangle); });
+        
+        Object.keys(chkElements).forEach(key => { if (chkElements[key]) { chkElements[key].addEventListener('change', (e) => { drawOptions[key] = e.target.checked; if (currentTriangle) requestAnimationFrame(drawTriangle); }); } });
+        calculateButton.addEventListener('click', calculateTriangle);
+        precisionSelect.addEventListener('change', () => { if (currentTriangle) { displayResults(currentTriangle); requestAnimationFrame(drawTriangle); } }); 
+        exportButton.addEventListener('click', () => { if (!currentTriangle) { showModal('Error', 'No hay triángulo para exportar.'); return; } const dataURL = canvas.toDataURL('image/png'); const link = document.createElement('a'); link.download = 'triangulo.png'; link.href = dataURL; link.click(); });
+        function setInitialTheme() { 
+            const themeIconSvg = document.getElementById('themeIcon');
+            if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) { 
+                document.documentElement.classList.add('dark'); 
+                themeIconSvg.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>`;
+                themeIconSvg.classList.remove('text-gray-700'); themeIconSvg.classList.add('text-gray-300');
+            } else { 
+                document.documentElement.classList.remove('dark'); 
+                themeIconSvg.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>`;
+                themeIconSvg.classList.remove('text-gray-300'); themeIconSvg.classList.add('text-gray-700');
+            } 
+        }
+        themeToggle.addEventListener('click', () => { 
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            setInitialTheme(); 
+            if (currentTriangle) requestAnimationFrame(drawTriangle); 
+        });
+        const resizeObserver = new ResizeObserver(entries => { for (let entry of entries) { if (entry.target === canvas.parentElement || entry.target === canvas) { if (currentTriangle) { updateLastCalculatedGeometry(); requestAnimationFrame(drawTriangle); } } } });
+        if (canvas.parentElement) { resizeObserver.observe(canvas.parentElement); } resizeObserver.observe(canvas);
+        setInitialTheme(); 
+        document.getElementById('inputType0').value = 'sideA'; document.getElementById('inputValue0').value = '3';
+        document.getElementById('inputType1').value = 'sideB'; document.getElementById('inputValue1').value = '4';
+        document.getElementById('inputType2').value = 'sideC'; document.getElementById('inputValue2').value = '5';
+        // calculateTriangle(); 
+     </script>
+ </body>
+ </html>
+ 
