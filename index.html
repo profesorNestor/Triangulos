@@ -10,6 +10,12 @@
          body {
              font-family: 'Inter', sans-serif;
              overscroll-behavior-y: contain; 
+             display: flex; /* Added for sticky footer */
+             flex-direction: column; /* Added for sticky footer */
+             min-height: 100vh; /* Added for sticky footer */
+         }
+         .main-content-wrapper { /* Added for sticky footer */
+             flex-grow: 1;
          }
          .input-group { display: flex; align-items: center; gap: 0.5rem; }
          .input-group select, .input-group input { 
@@ -41,8 +47,6 @@
              border-color: #4B5563; 
          }
          .dark .modal-content { background-color: #1F2937; }
-         /* El canvas en sí no necesita borde oscuro si su contenedor es siempre negro */
-         /* .dark #triangleCanvas { border: 1px solid #374151; } */
          .form-checkbox { border-radius: 0.25rem; border-color: #D1D5DB; }
          .dark .form-checkbox { border-color: #4B5563; background-color: #374151; }
          .dark .form-checkbox:checked { background-color: #3B82F6; border-color: #3B82F6;}
@@ -51,84 +55,89 @@
      </style>
  </head>
  <body class="bg-gray-100 min-h-screen flex flex-col items-center p-4 transition-colors duration-300">
+    <div class="main-content-wrapper w-full flex flex-col items-center"> <div class="w-full max-w-2xl space-y-6">
+            <header class="flex justify-between items-center mb-6 mt-4"> <h1 class="text-3xl font-bold text-blue-600 dark:text-blue-400">Visualizador de Triángulos 📐</h1>
+                <button id="themeToggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700" aria-label="Cambiar tema">
+                    <svg id="themeIcon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                </button>
+            </header>
 
-     <div class="w-full max-w-2xl space-y-6">
-         <header class="flex justify-between items-center mb-6">
-             <h1 class="text-3xl font-bold text-blue-600 dark:text-blue-400">Visualizador de Triángulos 📐</h1>
-             <button id="themeToggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700" aria-label="Cambiar tema">
-                 <svg id="themeIcon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
-             </button>
-         </header>
+            <div class="card">
+                <h2 class="text-xl font-semibold mb-4">Ingresar Datos del Triángulo 📝</h2>
+                <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Ingresa tres valores (al menos un lado). Los ángulos se ingresan en grados.</p>
+                <div id="inputsContainer" class="space-y-3 mb-4"></div>
+                <button id="calculateButton" class="btn btn-primary w-full">Calcular y Dibujar 🚀</button>
+            </div>
 
-         <div class="card">
-             <h2 class="text-xl font-semibold mb-4">Ingresar Datos del Triángulo 📝</h2>
-             <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Ingresa tres valores (al menos un lado). Los ángulos se ingresan en grados.</p>
-             <div id="inputsContainer" class="space-y-3 mb-4"></div>
-             <button id="calculateButton" class="btn btn-primary w-full">Calcular y Dibujar 🚀</button>
-         </div>
+            <div id="messageModal" class="modal">
+                <div class="modal-content">
+                    <h3 id="modalTitle" class="text-lg font-semibold mb-2">📢 Mensaje</h3>
+                    <p id="modalMessage" class="text-sm mb-4"></p>
+                    <button id="closeModalButton" class="btn btn-primary">Entendido 👍</button>
+                </div>
+            </div>
 
-         <div id="messageModal" class="modal">
-             <div class="modal-content">
-                 <h3 id="modalTitle" class="text-lg font-semibold mb-2">📢 Mensaje</h3>
-                 <p id="modalMessage" class="text-sm mb-4"></p>
-                 <button id="closeModalButton" class="btn btn-primary">Entendido 👍</button>
-             </div>
-         </div>
+            <div id="resultsCard" class="card hidden">
+                <h2 class="text-xl font-semibold mb-4">Resultados del Triángulo 📊</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div>
+                        <h3 class="text-lg font-medium mb-2">Dimensiones</h3>
+                        <ul class="space-y-1 text-sm">
+                            <li>Lado a: <span id="resLadoA" class="font-semibold"></span></li>
+                            <li>Lado b: <span id="resLadoB" class="font-semibold"></span></li>
+                            <li>Lado c: <span id="resLadoC" class="font-semibold"></span></li>
+                            <li>Ángulo A: <span id="resAnguloA" class="font-semibold"></span>°</li>
+                            <li>Ángulo B: <span id="resAnguloB" class="font-semibold"></span>°</li>
+                            <li>Ángulo C: <span id="resAnguloC" class="font-semibold"></span>°</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-medium mb-2">Propiedades</h3>
+                         <ul class="space-y-1 text-sm">
+                            <li>Perímetro: <span id="resPerimetro" class="font-semibold"></span></li>
+                            <li>Área: <span id="resArea" class="font-semibold"></span></li>
+                            <li id="resInradiusContainer" class="hidden">Radio Inscrito (r): <span id="resInradius" class="font-semibold"></span></li>
+                            <li id="resCircumradiusContainer" class="hidden">Radio Circunscrito (R): <span id="resCircumradius" class="font-semibold"></span></li>
+                        </ul>
+                        <div class="mt-4">
+                            <label for="precisionSelect" class="block text-sm font-medium mb-1">Precisión Decimal:</label>
+                            <select id="precisionSelect" class="w-full p-2 rounded-md">
+                                <option value="0">0</option> <option value="1">1</option> <option value="2" selected>2</option> <option value="3">3</option> <option value="4">4</option> <option value="5">5</option> <option value="6">6</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+               
+                <div class="mt-6">
+                    <h3 class="text-lg font-medium mb-3">Mostrar Elementos Adicionales: ➕</h3>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 text-sm">
+                        <div><label class="flex items-center space-x-2"><input type="checkbox" id="chkMedians" class="form-checkbox text-blue-500"> <span>Medianas</span></label></div>
+                        <div><label class="flex items-center space-x-2"><input type="checkbox" id="chkAltitudes" class="form-checkbox text-green-500"> <span>Alturas</span></label></div>
+                        <div><label class="flex items-center space-x-2"><input type="checkbox" id="chkAngleBisectors" class="form-checkbox text-purple-500"> <span>Bisectrices</span></label></div>
+                        <div><label class="flex items-center space-x-2"><input type="checkbox" id="chkPerpBisectors" class="form-checkbox text-pink-500"> <span>Mediatrices</span></label></div>
+                        <div><label class="flex items-center space-x-2"><input type="checkbox" id="chkCentroid" class="form-checkbox text-blue-700"> <span>Baricentro (G)</span></label></div>
+                        <div><label class="flex items-center space-x-2"><input type="checkbox" id="chkOrthocenter" class="form-checkbox text-green-700"> <span>Ortocentro (H)</span></label></div>
+                        <div><label class="flex items-center space-x-2"><input type="checkbox" id="chkIncenter" class="form-checkbox text-purple-700"> <span>Incentro (I)</span></label></div>
+                        <div><label class="flex items-center space-x-2"><input type="checkbox" id="chkCircumcenter" class="form-checkbox text-pink-700"> <span>Circuncentro (O)</span></label></div>
+                        <div><label class="flex items-center space-x-2"><input type="checkbox" id="chkInscribedCircle" class="form-checkbox text-purple-500"> <span>Circ. Inscrita</span></label></div>
+                        <div><label class="flex items-center space-x-2"><input type="checkbox" id="chkCircumscribedCircle" class="form-checkbox text-pink-500"> <span>Circ. Circunscrita</span></label></div>
+                    </div>
+                </div>
 
-         <div id="resultsCard" class="card hidden">
-             <h2 class="text-xl font-semibold mb-4">Resultados del Triángulo 📊</h2>
-             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                 <div>
-                     <h3 class="text-lg font-medium mb-2">Dimensiones</h3>
-                     <ul class="space-y-1 text-sm">
-                         <li>Lado a: <span id="resLadoA" class="font-semibold"></span></li>
-                         <li>Lado b: <span id="resLadoB" class="font-semibold"></span></li>
-                         <li>Lado c: <span id="resLadoC" class="font-semibold"></span></li>
-                         <li>Ángulo A: <span id="resAnguloA" class="font-semibold"></span>°</li>
-                         <li>Ángulo B: <span id="resAnguloB" class="font-semibold"></span>°</li>
-                         <li>Ángulo C: <span id="resAnguloC" class="font-semibold"></span>°</li>
-                     </ul>
-                 </div>
-                 <div>
-                     <h3 class="text-lg font-medium mb-2">Propiedades</h3>
-                      <ul class="space-y-1 text-sm">
-                         <li>Perímetro: <span id="resPerimetro" class="font-semibold"></span></li>
-                         <li>Área: <span id="resArea" class="font-semibold"></span></li>
-                         <li id="resInradiusContainer" class="hidden">Radio Inscrito (r): <span id="resInradius" class="font-semibold"></span></li>
-                         <li id="resCircumradiusContainer" class="hidden">Radio Circunscrito (R): <span id="resCircumradius" class="font-semibold"></span></li>
-                     </ul>
-                     <div class="mt-4">
-                         <label for="precisionSelect" class="block text-sm font-medium mb-1">Precisión Decimal:</label>
-                         <select id="precisionSelect" class="w-full p-2 rounded-md">
-                             <option value="0">0</option> <option value="1">1</option> <option value="2" selected>2</option> <option value="3">3</option> <option value="4">4</option> <option value="5">5</option> <option value="6">6</option>
-                         </select>
-                     </div>
-                 </div>
-             </div>
-            
-             <div class="mt-6">
-                 <h3 class="text-lg font-medium mb-3">Mostrar Elementos Adicionales: ➕</h3>
-                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 text-sm">
-                     <div><label class="flex items-center space-x-2"><input type="checkbox" id="chkMedians" class="form-checkbox text-blue-500"> <span>Medianas</span></label></div>
-                     <div><label class="flex items-center space-x-2"><input type="checkbox" id="chkAltitudes" class="form-checkbox text-green-500"> <span>Alturas</span></label></div>
-                     <div><label class="flex items-center space-x-2"><input type="checkbox" id="chkAngleBisectors" class="form-checkbox text-purple-500"> <span>Bisectrices</span></label></div>
-                     <div><label class="flex items-center space-x-2"><input type="checkbox" id="chkPerpBisectors" class="form-checkbox text-pink-500"> <span>Mediatrices</span></label></div>
-                     <div><label class="flex items-center space-x-2"><input type="checkbox" id="chkCentroid" class="form-checkbox text-blue-700"> <span>Baricentro (G)</span></label></div>
-                     <div><label class="flex items-center space-x-2"><input type="checkbox" id="chkOrthocenter" class="form-checkbox text-green-700"> <span>Ortocentro (H)</span></label></div>
-                     <div><label class="flex items-center space-x-2"><input type="checkbox" id="chkIncenter" class="form-checkbox text-purple-700"> <span>Incentro (I)</span></label></div>
-                     <div><label class="flex items-center space-x-2"><input type="checkbox" id="chkCircumcenter" class="form-checkbox text-pink-700"> <span>Circuncentro (O)</span></label></div>
-                     <div><label class="flex items-center space-x-2"><input type="checkbox" id="chkInscribedCircle" class="form-checkbox text-purple-500"> <span>Circ. Inscrita</span></label></div>
-                     <div><label class="flex items-center space-x-2"><input type="checkbox" id="chkCircumscribedCircle" class="form-checkbox text-pink-500"> <span>Circ. Circunscrita</span></label></div>
-                 </div>
-             </div>
-
-             <h3 class="text-lg font-medium mb-2 mt-6">Visualización del Triángulo 🖼️</h3>
-             <div class="bg-black p-2 rounded-md relative">
-                 <canvas id="triangleCanvas"></canvas>
-             </div>
-             <button id="exportButton" class="btn btn-secondary w-full mt-4">Exportar Imagen 💾</button>
-         </div>
-     </div>
+                <h3 class="text-lg font-medium mb-2 mt-6">Visualización del Triángulo 🖼️</h3>
+                <div class="bg-black p-2 rounded-md relative">
+                    <canvas id="triangleCanvas"></canvas>
+                </div>
+                <button id="exportButton" class="btn btn-secondary w-full mt-4">Exportar Imagen 💾</button>
+            </div>
+        </div>
+    </div> <footer class="w-full text-center p-4 mt-8"> <p class="text-sm text-gray-600 dark:text-gray-400">
+            Autor: MSc. Néstor Fabio Montoya Palacios
+        </p>
+        <p class="text-xs text-gray-500 dark:text-gray-500 mt-1">
+            Visualizador de Triángulos &copy; 2025
+        </p>
+    </footer>
 
      <script>
          // --- 🌐 CONSTANTES GLOBALES Y ESTADO DE LA APLICACIÓN ---
@@ -158,7 +167,7 @@
 
          // --- 📐 LÓGICA PRINCIPAL DE CÁLCULO ---
          function calculateTriangle() { /* ... (same robust logic as before) ... */ 
-            currentTriangle=null;calculatedElements={};resultsCard.classList.add('hidden');resInradiusContainer.classList.add('hidden');resCircumradiusContainer.classList.add('hidden');scaleFactor=1.0;panOffset={x:0,y:0};const inputs=[];let sideCount=0;const definedValues={};for(let i=0;i<3;i++){const type=document.getElementById(`inputType${i}`).value;const valueStr=document.getElementById(`inputValue${i}`).value;if(valueStr===''){showModal('Error 🚫','Completa los 3 campos.');return;}const value=parseFloat(valueStr);if(type.startsWith('angle')){if(isNaN(value)||value<=0||value>=180){showModal('Error 🚫',`Ángulo '${type}' inválido (0-180).`);return;}}else if(type.startsWith('side')){if(isNaN(value)||value<=0){showModal('Error �',`Lado '${type}' debe ser > 0.`);return;}}else if(isNaN(value)){showModal('Error 🚫',`Valor '${type}' debe ser número.`);return;}if(definedValues[type]){showModal('Error 🚫',`'${type}' definido múltiples veces.`);return;}definedValues[type]=true;inputs.push({type,value});if(type.startsWith('side'))sideCount++;}if(inputs.length!==3){showModal('Error 🚫','Ingresa 3 valores.');return;}if(sideCount===0){showModal('Error 🚫','Al menos un lado.');return;}let{sA,sB,sC,angA,angB,angC}=parseInputs(inputs);try{const solution=solveTriangle(sA,sB,sC,angA,angB,angC);currentTriangle=solution;calculateSpecialElements();displayResults(solution);resultsCard.classList.remove('hidden');updateLastCalculatedGeometry();requestAnimationFrame(drawTriangle);}catch(error){showModal('Error Cálculo 🤯',error.message);currentTriangle=null;resultsCard.classList.add('hidden');}
+            currentTriangle=null;calculatedElements={};resultsCard.classList.add('hidden');resInradiusContainer.classList.add('hidden');resCircumradiusContainer.classList.add('hidden');scaleFactor=1.0;panOffset={x:0,y:0};const inputs=[];let sideCount=0;const definedValues={};for(let i=0;i<3;i++){const type=document.getElementById(`inputType${i}`).value;const valueStr=document.getElementById(`inputValue${i}`).value;if(valueStr===''){showModal('Error 🚫','Completa los 3 campos.');return;}const value=parseFloat(valueStr);if(type.startsWith('angle')){if(isNaN(value)||value<=0||value>=180){showModal('Error 🚫',`Ángulo '${type}' inválido (0-180).`);return;}}else if(type.startsWith('side')){if(isNaN(value)||value<=0){showModal('Error 🚫',`Lado '${type}' debe ser > 0.`);return;}}else if(isNaN(value)){showModal('Error 🚫',`Valor '${type}' debe ser número.`);return;}if(definedValues[type]){showModal('Error 🚫',`'${type}' definido múltiples veces.`);return;}definedValues[type]=true;inputs.push({type,value});if(type.startsWith('side'))sideCount++;}if(inputs.length!==3){showModal('Error 🚫','Ingresa 3 valores.');return;}if(sideCount===0){showModal('Error 🚫','Al menos un lado.');return;}let{sA,sB,sC,angA,angB,angC}=parseInputs(inputs);try{const solution=solveTriangle(sA,sB,sC,angA,angB,angC);currentTriangle=solution;calculateSpecialElements();displayResults(solution);resultsCard.classList.remove('hidden');updateLastCalculatedGeometry();requestAnimationFrame(drawTriangle);}catch(error){showModal('Error Cálculo 🤯',error.message);currentTriangle=null;resultsCard.classList.add('hidden');}
          }
          function parseInputs(inputs){ /* ... (same as before) ... */ 
             let sA,sB,sC,angA,angB,angC; inputs.forEach(input => { switch (input.type) { case 'sideA':sA=input.value;break; case 'sideB':sB=input.value;break; case 'sideC':sC=input.value;break; case 'angleA':angA=toRadians(input.value);break; case 'angleB':angB=toRadians(input.value);break; case 'angleC':angC=toRadians(input.value);break; }}); return{sA,sB,sC,angA,angB,angC};
@@ -267,22 +276,21 @@
              const triCenterX=minX+triW/2,triCenterY=minY+triH/2;
              ctx.translate(canvas.width/(2*dpr)+panOffset.x,canvas.height/(2*dpr)+panOffset.y);ctx.scale(currentDisplayScale,currentDisplayScale);ctx.translate(-triCenterX,-triCenterY);
              const scrLineWidth=1.5,baseLineWidth=scrLineWidth/currentDisplayScale,ptRadius=3/currentDisplayScale,specialPtRadius=4/currentDisplayScale;
-             // Colores para el canvas, ahora fijos o basados en G_isDarkModeActive para elementos fuera del triángulo principal
              const colors={
-                         triStroke: '#60A5FA', // Azul brillante para el borde del triángulo
-                         median: G_isDarkModeActive ? '#A3E635' : '#65A30D', // Lima
-                         altitude: G_isDarkModeActive ? '#F472B6' : '#DB2777', // Rosa
-                         angleBisector: G_isDarkModeActive ? '#818CF8' : '#4F46E5', // Indigo
-                         perpBisector: G_isDarkModeActive ? '#2DD4BF' : '#0D9488', // Teal
-                         centroid: G_isDarkModeActive ? '#C084FC' : '#9333EA', // Púrpura
-                         orthocenter: G_isDarkModeActive ? '#FB923C' : '#F97316', // Naranja
-                         incenter: G_isDarkModeActive ? '#FACC15' : '#EAB308', // Amarillo
-                         circumcenter: G_isDarkModeActive ? '#67E8F9' : '#06B6D4', // Cian
+                         triStroke: '#60A5FA', 
+                         median: G_isDarkModeActive ? '#A3E635' : '#65A30D', 
+                         altitude: G_isDarkModeActive ? '#F472B6' : '#DB2777', 
+                         angleBisector: G_isDarkModeActive ? '#818CF8' : '#4F46E5', 
+                         perpBisector: G_isDarkModeActive ? '#2DD4BF' : '#0D9488', 
+                         centroid: G_isDarkModeActive ? '#C084FC' : '#9333EA', 
+                         orthocenter: G_isDarkModeActive ? '#FB923C' : '#F97316', 
+                         incenter: G_isDarkModeActive ? '#FACC15' : '#EAB308', 
+                         circumcenter: G_isDarkModeActive ? '#67E8F9' : '#06B6D4', 
                          inscCirc: G_isDarkModeActive ? '#FACC15' : '#EAB308',
                          circCirc: G_isDarkModeActive ? '#67E8F9' : '#06B6D4',
-                         label: '#FFFFFF', // Siempre blanco para etiquetas sobre el canvas
-                         value: '#FFFFFF', // Siempre blanco para valores sobre el canvas
-                         angArcs:[ '#FACC15', '#F87171', '#FB923C'] // Amarillo, Rojo, Naranja (fijos)
+                         label: '#FFFFFF', 
+                         value: '#FFFFFF', 
+                         angArcs:[ '#FACC15', '#F87171', '#FB923C'] 
                         };
              function drawLine(p1,p2,clr,dash=[],ext=1){if(!p1||!p2)return;let p1e=p1,p2e=p2;if(ext!==1){const dx=p2.x-p1.x,dy=p2.y-p1.y;p2e={x:p1.x+dx*ext,y:p1.y+dy*ext};if(ext>1.1)p1e={x:p1.x-dx*(ext-1)*0.3,y:p1.y-dy*(ext-1)*0.3};}ctx.beginPath();ctx.moveTo(p1e.x,p1e.y);ctx.lineTo(p2e.x,p2e.y);ctx.strokeStyle=clr;ctx.lineWidth=baseLineWidth*0.8;ctx.setLineDash(dash.map(d=>d/currentDisplayScale));ctx.stroke();ctx.setLineDash([]);}
              function drawLabeledPoint(p,lbl,clr,rad=specialPtRadius){if(!p)return;ctx.beginPath();ctx.arc(p.x,p.y,rad,0,2*PI);ctx.fillStyle=clr;ctx.fill();ctx.fillStyle=colors.label;ctx.font=`bold ${12/currentDisplayScale}px Arial`;ctx.fillText(lbl,p.x+rad*1.5,p.y-rad*1.5);}
@@ -294,21 +302,18 @@
              if(drawOptions.perpBisectors&&perpBisectors){perpBisectors.forEach(pb=>{if(!pb||!pb.p1||!pb.p2)return;const dx=pb.p2.x-pb.p1.x,dy=pb.p2.y-pb.p1.y;const len=Math.sqrt(dx*dx+dy*dy);if(len<epsilon)return;const ext=Math.max(a,b,c)*1.0/len;const p_s={x:pb.p1.x-dx*ext,y:pb.p1.y-dy*ext};const p_e={x:pb.p1.x+dx*ext,y:pb.p1.y+dy*ext};drawLine(p_s,p_e,colors.perpBisector,[10,4]);});}
              if(drawOptions.circumcenter&&circumcenter)drawLabeledPoint(circumcenter,"O",colors.circumcenter);if(drawOptions.circumscribedCircle&&circumcenter&&circumradius)drawCircle(circumcenter,circumradius,colors.circCirc);
              
-             // Dibujo del triángulo principal (relleno y borde)
              ctx.beginPath();ctx.moveTo(pA.x,pA.y);ctx.lineTo(pB.x,pB.y);ctx.lineTo(pC.x,pC.y);ctx.closePath();
-             ctx.fillStyle = 'rgba(59, 130, 246, 0.6)'; // Azul semitransparente fijo para el relleno
+             ctx.fillStyle = 'rgba(59, 130, 246, 0.6)'; 
              ctx.fill();
-             ctx.strokeStyle = colors.triStroke; // Usa el color definido en el objeto colors
+             ctx.strokeStyle = colors.triStroke; 
              ctx.lineWidth = baseLineWidth;
              ctx.stroke();
 
-             // Estilos para etiquetas y valores del triángulo principal
              const valFontSize=13,vtxNameFontSize=15;const geomValFS=valFontSize/currentDisplayScale,geomVtxNameFS=vtxNameFontSize/currentDisplayScale;
              const vtxNameFont=`bold ${geomVtxNameFS}px Arial`,valFont=`${geomValFS}px Arial`;
              const scrLblOff=12,geomLblOff=scrLblOff/currentDisplayScale;const scrAngValOff=18,geomAngValOff=scrAngValOff/currentDisplayScale;const scrVtxLblOff=8,geomVtxLblOff=scrVtxLblOff/currentDisplayScale;const scrArcRad=19,geomArcRad=scrArcRad/currentDisplayScale;
              
-             // Dibujar etiquetas de vértices (A,B,C) y arcos de ángulos
-             ctx.fillStyle = colors.label; // Siempre blanco
+             ctx.fillStyle = colors.label; 
              ctx.font = vtxNameFont;
              ctx.lineWidth = (scrLineWidth+1)/currentDisplayScale;
 
@@ -318,8 +323,7 @@
              const vCA={x:pA.x-pC.x,y:pA.y-pC.y},vCB={x:pB.x-pC.x,y:pB.y-pC.y};const angCA=Math.atan2(vCA.y,vCA.x),angCB=Math.atan2(vCB.y,vCB.x);let crossC=vCA.x*vCB.y-vCA.y*vCB.x;ctx.beginPath();ctx.arc(pC.x,pC.y,geomArcRad,angCA,angCB,crossC<0);ctx.strokeStyle=colors.angArcs[2];ctx.stroke();
              const lCAn={x:pA.x-pC.x,y:pA.y-pC.y};const l_CA=Math.sqrt(lCAn.x**2+lCAn.y**2);if(l_CA>epsilon){lCAn.x/=l_CA;lCAn.y/=l_CA;}const lCBn={x:pB.x-pC.x,y:pB.y-pC.y};const l_CB=Math.sqrt(lCBn.x**2+lCBn.y**2);if(l_CB>epsilon){lCBn.x/=l_CB;lCBn.y/=l_CB;}let bCx=lCAn.x+lCBn.x,bCy=lCAn.y+lCBn.y;let lenCC=Math.sqrt(bCx**2+bCy**2);if(lenCC>epsilon){bCx/=lenCC;bCy/=lenCC;}else{bCx=lCAn.y;bCy=-lCAn.x;}ctx.fillText("C",pC.x+geomVtxLblOff*1.5*bCx,pC.y+geomVtxLblOff*1.5*bCy);
              
-             // Dibujar valores de lados y ángulos
-             ctx.fillStyle=colors.value; // Siempre blanco
+             ctx.fillStyle=colors.value; 
              ctx.font=valFont;ctx.lineWidth=baseLineWidth;
              ctx.fillText(`c=${formatNumber(c)}`,(pA.x+pB.x)/2,(pA.y+pB.y)/2-geomLblOff);const mACx=(pA.x+pC.x)/2,mACy=(pA.y+pC.y)/2;let nACx=-(pC.y-pA.y),nACy=(pC.x-pA.x);let lAC=Math.sqrt(nACx**2+nACy**2);if(lAC<epsilon){nACx=0;nACy=-1;lAC=1;}ctx.fillText(`b=${formatNumber(b)}`,mACx+geomLblOff*nACx/lAC,mACy+geomLblOff*nACy/lAC);const mBCx=(pB.x+pC.x)/2,mBCy=(pB.y+pC.y)/2;let nBCx=-(pC.y-pB.y),nBCy=(pC.x-pB.x);let lBC=Math.sqrt(nBCx**2+nBCy**2);if(lBC<epsilon){nBCx=0;nBCy=-1;lBC=1;}ctx.fillText(`a=${formatNumber(a)}`,mBCx+geomLblOff*nBCx/lBC,mBCy+geomLblOff*nBCy/lBC);
              const angValOffM=2.5;if(A_rad>epsilon)ctx.fillText(`${formatNumber(toDegrees(A_rad))}°`,pA.x+geomAngValOff*angValOffM*Math.cos(A_rad/2),pA.y+geomAngValOff*angValOffM*Math.sin(A_rad/2));if(lenBB>epsilon&&B_rad>epsilon)ctx.fillText(`${formatNumber(toDegrees(B_rad))}°`,pB.x+geomAngValOff*angValOffM*bBx,pB.y+geomAngValOff*angValOffM*bBy);if(lenCC>epsilon&&C_rad>epsilon)ctx.fillText(`${formatNumber(toDegrees(C_rad))}°`,pC.x+geomAngValOff*angValOffM*bCx,pC.y+geomAngValOff*angValOffM*bCy);
@@ -368,7 +372,7 @@
         // --------------------------------------------------------------------
         function updateThemeVisuals(isDark) { 
             const themeIconSvg = document.getElementById('themeIcon');
-            G_isDarkModeActive = isDark; // Actualizar variable global
+            G_isDarkModeActive = isDark; 
             if (isDark) {
                 document.documentElement.classList.add('dark');
                 themeIconSvg.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>`; // Luna 🌙
@@ -386,7 +390,7 @@
             let isDark;
             if (storedTheme === 'dark') isDark = true;
             else if (storedTheme === 'light') isDark = false;
-            else isDark = prefersDark; // Usar preferencia del sistema si no hay nada guardado
+            else isDark = prefersDark; 
             updateThemeVisuals(isDark);
         }
 
@@ -414,4 +418,4 @@
      </script>
  </body>
  </html>
- �
+ 
